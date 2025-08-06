@@ -1,0 +1,22 @@
+{
+  "node": {
+    "4621405550bbda6e4a62ef0376a48cfffb0f8ab1": {
+      "workers": {
+        "app/home/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fclementlumumba%2FDocuments%2FOSS%2Ffileshare%2Fdata-loom%2Fmodules%2Fconnections%2Fcreate%2Factions.ts%22%2C%5B%22createPairingCode%22%2C%22redeemPairingCode%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/home/page": "action-browser"
+      }
+    },
+    "9b3d4bee0f03e8e71be89f63164c6383de8ebd8f": {
+      "workers": {
+        "app/home/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fclementlumumba%2FDocuments%2FOSS%2Ffileshare%2Fdata-loom%2Fmodules%2Fconnections%2Fcreate%2Factions.ts%22%2C%5B%22createPairingCode%22%2C%22redeemPairingCode%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/home/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "Zudgr3AD8PJqMRSXUM4A5+xnv/QpZFAlgp1s7Z4viss="
+}
