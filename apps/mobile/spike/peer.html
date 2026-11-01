@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Phase 1 spike: browser peer</title>
+  </head>
+  <body style="font: 14px monospace; white-space: pre-wrap">
+    <div id="out">starting…</div>
+    <script>
+      // Browser side of the interop test. Mirrors what the web app does:
+      //   new RTCPeerConnection() (no ICE servers unless ?ice= is given),
+      //   caller opens a "test" channel and calls setLocalDescription() with no args,
+      //   candidates are JSON.stringify'd, a "file:0" channel is created afterwards,
+      //   first message = JSON metadata, then binary chunks with bufferedamountlow backpressure.
+      const q = new URLSearchParams(location.search)
+      const cfg = {
+        room: q.get("room") ?? "r1",
+        role: q.get("role") ?? "callee", // caller | callee (signaling roles)
+        dir: q.get("dir") ?? "recv", // send | recv (file direction)
+        sizeMB: Number(q.get("sizeMB") ?? 20),
+        chunkKB: Number(q.get("chunkKB") ?? 50),
+        ice: q.get("ice"), // e.g. stun:stun.cloudflare.com:3478
+        iceServers: q.get("iceServers") ? JSON.parse(q.get("iceServers")) : null, // full RTCIceServer list (TURN with credentials)
+        policy: q.get("policy"), // relay = force TURN
+        handshake: q.get("handshake") === "1", // receiver sends {ready:true}; sender waits for it
+        flow: q.get("flow") ?? "buffer", // buffer | ack
+        window: Number(q.get("window") ?? 64),
+      }
+      const ACK_EVERY = 16
+      const peerRole = cfg.role === "caller" ? "callee" : "caller"
+      const out = document.getElementById("out")
+      const t0 = performance.now()
+      const states = []
+      const errors = []
+      const log = (...a) => {
+        const line = `${((performance.now() - t0) / 1000).toFixed(2)}s ${a.join(" ")}`
+        out.textContent += "\n" + line
+        fetch("/log", { method: "POST", body: JSON.stringify({ who: "browser", line }) })
+      }
+      const post = (path, body) =>
+        fetch(path, { method: "POST", body: JSON.stringify(body) })
+      const signal = (msg) => post("/signal", { room: cfg.room, to: peerRole, msg })
+
+      const SAMPLE = (len) => [4, 5, 6, 7, 100, len >> 1, len - 1].filter((p) => p >= 4 && p < len)
+      const expected = (p) => (p * 131 + 17) & 255
+      const makeBase = (n) => {
+        const b = new Uint8Array(n)
+        for (let i = 0; i < n; i++) b[i] = (i * 131 + 17) & 255
+        return b
+      }
+
+      async function sendFile(ch, sizeBytes, chunk) {
+        ch.binaryType = "arraybuffer"
+        ch.bufferedAmountLowThreshold = chunk * 5
+        if (ch.readyState !== "open")
+          await new Promise((res) => (ch.onopen = res))
+        const closed = new Promise((res) => (ch.onclose = () => res(performance.now())))
+        const base = makeBase(chunk)
+        let waiter = null
+        ch.onbufferedamountlow = () => { const w = waiter; waiter = null; w && w("event") }
+        const useAcks = cfg.flow === "ack"
+        let acked = 0, maxInFlight = 0, isReady = !cfg.handshake, readyWaiter = null
+        if (useAcks || cfg.handshake) {
+          ch.onmessage = (e) => {
+            if (typeof e.data !== "string") return
+            try {
+              const m = JSON.parse(e.data)
+              if (m.ready) { isReady = true; readyWaiter && readyWaiter() }
+              else if (typeof m.ack === "number") { acked = Math.max(acked, m.ack); const w = waiter; waiter = null; w && w("event") }
+            } catch {}
+          }
+        }
+        let handshake, handshakeMs
+        if (cfg.handshake) {
+          const t = performance.now()
+          if (!isReady) await Promise.race([new Promise((r) => (readyWaiter = r)), new Promise((r) => setTimeout(r, 3000))])
+          handshakeMs = Math.round(performance.now() - t)
+          handshake = isReady ? "ready" : "timeout"
+        }
+        ch.send(JSON.stringify({ name: "spike.bin", size: sizeBytes, mimeType: "application/octet-stream" }))
+        let sent = 0, idx = 0, eventWakes = 0, timeoutWakes = 0
+        const start = performance.now()
+        while (sent < sizeBytes) {
+          const mustWait = useAcks ? idx - acked >= cfg.window : ch.bufferedAmount > ch.bufferedAmountLowThreshold
+          if (mustWait) {
+            const how = await Promise.race([
+              new Promise((r) => (waiter = r)),
+              new Promise((r) => setTimeout(() => r("timeout"), 500)),
+            ])
+            waiter = null
+            how === "event" ? eventWakes++ : timeoutWakes++
+            continue
+          }
+          const len = Math.min(chunk, sizeBytes - sent)
+          const u8 = new Uint8Array(len)
+          u8.set(len === chunk ? base : base.subarray(0, len))
+          new DataView(u8.buffer).setUint32(0, idx)
+          ch.send(u8)
+          sent += len
+          idx++
+          maxInFlight = Math.max(maxInFlight, idx - acked)
+        }
+        const queuedMs = performance.now() - start
+        const closedAt = await Promise.race([closed, new Promise((r) => setTimeout(() => r(null), 120000))])
+        const totalMs = closedAt ? closedAt - start : null
+        return { bytes: sent, chunks: idx, queuedMs, totalMs, mbps: totalMs ? sizeBytes / 1048576 / (totalMs / 1000) : null, eventWakes, timeoutWakes, ...(useAcks ? { maxInFlight } : {}), ...(cfg.handshake ? { handshake, handshakeMs } : {}) }
+      }
+
+      function receiveFile(ch) {
+        return new Promise((resolve) => {
+          ch.binaryType = "arraybuffer"
+          let meta = null, got = 0, idx = 0, bad = 0, first = 0, last = 0, msgs = 0
+          ch.onmessage = (e) => {
+            const d = e.data
+            if (!meta) { if (typeof d === "string") meta = JSON.parse(d); return }
+            if (typeof d === "string") return
+            const u8 = new Uint8Array(d)
+            const t = performance.now()
+            if (!first) first = t
+            last = t
+            msgs++
+            if (u8.byteLength >= 4 && new DataView(u8.buffer).getUint32(0) !== idx) bad++
+            for (const p of SAMPLE(u8.byteLength)) if (u8[p] !== expected(p)) { bad++; break }
+            idx++
+            got += u8.byteLength
+            if (cfg.flow === "ack" && idx % ACK_EVERY === 0) ch.send(JSON.stringify({ ack: idx }))
+            if (got >= meta.size) {
+              const ms = last - first
+              resolve({ meta, bytes: got, chunks: msgs, badChunks: bad, ms, mbps: ms > 0 ? got / 1048576 / (ms / 1000) : null })
+              ch.close()
+            }
+          }
+          if (cfg.handshake) ch.send(JSON.stringify({ ready: true }))
+        })
+      }
+
+      async function selectedPair(pc) {
+        try {
+          const stats = await pc.getStats()
+          const byId = {}
+          let pairId
+          stats.forEach((r) => {
+            byId[r.id] = r
+            if (r.type === "transport" && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId
+          })
+          const pair = byId[pairId]
+          if (!pair) return { note: "no selected pair" }
+          const l = byId[pair.localCandidateId], r = byId[pair.remoteCandidateId]
+          return { local: l && l.candidateType, remote: r && r.candidateType, protocol: l && l.protocol }
+        } catch (e) { return { error: String(e) } }
+      }
+
+      async function main() {
+        const iceServers = cfg.iceServers || (cfg.ice ? [{ urls: cfg.ice }] : undefined)
+        const pcConfig = {}
+        if (iceServers) pcConfig.iceServers = iceServers
+        if (cfg.policy) pcConfig.iceTransportPolicy = cfg.policy
+        const pc = new RTCPeerConnection(iceServers || cfg.policy ? pcConfig : undefined)
+        let remoteSet = false
+        const pending = []
+        let candidateJsonKeys = null
+        const gathered = {}
+        const addRemote = async (c) => { try { await pc.addIceCandidate(c) } catch (e) { errors.push("addIceCandidate: " + e) } }
+
+        pc.addEventListener("icecandidate", (e) => {
+          if (!e.candidate) return
+          const payload = JSON.parse(JSON.stringify(e.candidate))
+          candidateJsonKeys = candidateJsonKeys || Object.keys(payload)
+          const type = (/\btyp (\w+)/.exec(payload.candidate) || [])[1] || "unknown"
+          const key = payload.candidate.includes(".local ") ? type + "(mdns)" : type
+          gathered[key] = (gathered[key] || 0) + 1
+          signal({ kind: "candidate", payload })
+        })
+        for (const ev of ["connectionstatechange", "iceconnectionstatechange", "icegatheringstatechange"]) {
+          pc.addEventListener(ev, () => {
+            const v = ev === "connectionstatechange" ? pc.connectionState : ev === "iceconnectionstatechange" ? pc.iceConnectionState : pc.iceGatheringState
+            states.push([+((performance.now() - t0) / 1000).toFixed(2), ev, v])
+            log(ev, v)
+          })
+        }
+
+        const connected = new Promise((resolve, reject) => {
+          pc.addEventListener("connectionstatechange", () => {
+            if (pc.connectionState === "connected") resolve(performance.now() - t0)
+            if (pc.connectionState === "failed") reject(new Error("connectionState=failed"))
+          })
+          setTimeout(() => reject(new Error("connect timeout 45s")), 45000)
+        })
+        connected.catch(() => {})
+
+        const fileChannel = new Promise((resolve) => {
+          pc.addEventListener("datachannel", (e) => { log("datachannel", e.channel.label); if (e.channel.label.startsWith("file:")) resolve(e.channel) })
+        })
+
+        // signaling loop
+        let after = 0
+        let running = true
+        const pump = (async () => {
+          while (running) {
+            const r = await fetch(`/signal?room=${cfg.room}&to=${cfg.role}&after=${after}`).then((x) => x.json()).catch(() => ({ msgs: [] }))
+            for (const { n, msg } of r.msgs) {
+              after = n
+              if (msg.kind === "offer" || msg.kind === "answer") {
+                await pc.setRemoteDescription(msg.payload)
+                remoteSet = true
+                for (const c of pending.splice(0)) await addRemote(c)
+                if (msg.kind === "offer") {
+                  await pc.setLocalDescription()
+                  signal({ kind: "answer", payload: JSON.parse(JSON.stringify(pc.localDescription)) })
+                }
+              } else if (msg.kind === "candidate") {
+                remoteSet ? await addRemote(msg.payload) : pending.push(msg.payload)
+              }
+            }
+          }
+        })()
+
+        let dummy
+        if (cfg.role === "caller") {
+          dummy = pc.createDataChannel("test")
+          await pc.setLocalDescription()
+          signal({ kind: "offer", payload: JSON.parse(JSON.stringify(pc.localDescription)) })
+        }
+
+        const result = { room: cfg.room, role: cfg.role, dir: cfg.dir, sizeMB: cfg.sizeMB, chunkKB: cfg.chunkKB, flow: cfg.flow, ice: cfg.ice || null, userAgent: navigator.userAgent }
+        try {
+          result.connectMs = Math.round(await connected)
+          if (dummy) dummy.close()
+          result.pair = await selectedPair(pc)
+          log("connected", JSON.stringify(result.pair))
+          const chunk = cfg.chunkKB * 1024
+          const size = cfg.sizeMB * 1048576
+          if (cfg.dir === "send") {
+            const ch = pc.createDataChannel("file:0")
+            result.transfer = await sendFile(ch, size, chunk)
+          } else {
+            const ch = await fileChannel
+            result.transfer = await receiveFile(ch)
+          }
+          result.ok = result.transfer.badChunks ? false : true
+        } catch (e) {
+          result.ok = false
+          result.error = String(e)
+          result.pair = result.pair || (await selectedPair(pc))
+        }
+        result.states = states
+        result.candidateJsonKeys = candidateJsonKeys
+        result.gathered = gathered
+        result.errors = errors
+        running = false
+        await post("/result", { platform: "browser", job: { kind: "interop", ...cfg }, result })
+        log("done", result.ok ? "OK" : "FAILED")
+        setTimeout(() => pc.close(), 500)
+      }
+      main().catch((e) => log("fatal", String(e)))
+    </script>
+  </body>
+</html>
