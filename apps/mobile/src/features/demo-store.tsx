@@ -1,6 +1,8 @@
-// UI-preview state: a stand-in for the web app's connection machines. It simulates
-// connections and transfers with timers so the screens can be built and reviewed before
-// the real networking is wired in. See sample-data.ts.
+// UI-preview state: a stand-in for the web app's connection machines. File transfers are
+// still simulated with timers so the screens can be built and reviewed before WebRTC is
+// wired in. The list of connections is real when Supabase is configured: connections-sync.tsx
+// feeds it through syncConnections. Without Supabase everything here is sample data
+// (see sample-data.ts).
 import {
   createContext,
   useCallback,
@@ -79,6 +81,7 @@ function scenarioState(scenario: Scenario): State {
 
 type Action =
   | { type: 'set'; state: State }
+  | { type: 'sync'; people: Person[] }
   | { type: 'add'; person: Person }
   | { type: 'remove'; id: string }
   | { type: 'patch'; id: string; patch: Partial<Connection> }
@@ -89,6 +92,14 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'set':
       return action.state;
+    case 'sync': {
+      // Keep the entry (and any transfer in progress) of everyone who is still connected.
+      const current = new Map(state.connections.map((c) => [c.id, c]));
+      return {
+        ...state,
+        connections: action.people.map((person) => current.get(person.id) ?? idle(person)),
+      };
+    }
     case 'add':
       return state.connections.some((c) => c.id === action.person.id)
         ? state
@@ -122,6 +133,8 @@ function reducer(state: State, action: Action): State {
 
 type Store = {
   state: State;
+  /** Replaces the list of connections with the people you are really connected to. */
+  syncConnections: (people: Person[]) => void;
   addConnection: (person: Person) => void;
   removeConnection: (id: string) => void;
   sendFiles: (id: string) => void;
@@ -180,6 +193,7 @@ export function DemoStoreProvider({ children }: PropsWithChildren) {
 
   const actions = useMemo<Omit<Store, 'state'>>(
     () => ({
+      syncConnections: (people) => dispatch({ type: 'sync', people }),
       addConnection: (person) => dispatch({ type: 'add', person }),
       removeConnection: (id) => dispatch({ type: 'remove', id }),
       clearTransfer: (id) =>

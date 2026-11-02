@@ -10,6 +10,7 @@ import { formatBytes } from '@/ui/format';
 import { ProgressBar } from '@/ui/progress';
 import { Text, green500 } from '@/ui/text';
 
+import { useConnectionActions } from './connections-sync';
 import { useDemoStore, type Connection } from './demo-store';
 import { personName, type FileMeta } from './sample-data';
 
@@ -26,7 +27,8 @@ const isDone = (file: FileMeta, transferred: number) => transferred >= file.size
 
 function Card({ connection }: { connection: Connection }) {
   const t = useTheme();
-  const { removeConnection, sendFiles } = useDemoStore();
+  const { sendFiles } = useDemoStore();
+  const { remove } = useConnectionActions();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { person, status, transfer } = connection;
 
@@ -89,7 +91,7 @@ function Card({ connection }: { connection: Connection }) {
             variant="destructive"
             onPress={() => {
               setConfirmingDelete(false);
-              removeConnection(connection.id);
+              remove(connection.id);
             }}>
             Delete
           </Button>

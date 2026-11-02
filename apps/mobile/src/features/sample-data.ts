@@ -1,6 +1,7 @@
-// SAMPLE DATA for the UI preview. The screens are not connected to Supabase or WebRTC yet;
-// everything the user sees (people, connections, files, progress) comes from here and
-// from demo-store.tsx. Replace both when the shared core lands (plan, Phase 3 and 4).
+// SAMPLE DATA for the UI preview. Pairing and the connections list use Supabase when the app
+// is configured for it (lib/supabase.ts); otherwise, and always for files and transfer
+// progress (WebRTC is not wired in yet), everything the user sees comes from here and from
+// demo-store.tsx. Replace both when the shared core lands (plan, Phase 3 and 4).
 import type { ThemeName } from '@/theme/colors';
 
 export type Person = {

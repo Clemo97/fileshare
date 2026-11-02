@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 
+import { ConnectionsSync } from '@/features/connections-sync';
 import { DemoStoreProvider } from '@/features/demo-store';
-import { ME } from '@/features/sample-data';
+import { SessionProvider, useSession } from '@/features/session';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 // Phase 1 spike only (see spike/README.md): polls the local test server for jobs.
@@ -23,13 +24,24 @@ function RootStack() {
   );
 }
 
-export default function RootLayout() {
-  // The web app themes the page with the signed-in user's colour; ME is sample data for now.
+function ThemedApp() {
+  // The web app themes the page with the signed-in user's colour (sample data in demo mode).
+  const { me } = useSession();
+
   return (
-    <ThemeProvider name={ME.colorId}>
+    <ThemeProvider name={me.colorId}>
       <DemoStoreProvider>
+        <ConnectionsSync />
         <RootStack />
       </DemoStoreProvider>
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SessionProvider>
+      <ThemedApp />
+    </SessionProvider>
   );
 }

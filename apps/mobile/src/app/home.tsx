@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConnectionCard } from '@/features/connection-card';
 import { SCENARIOS, useDemoStore, type Scenario } from '@/features/demo-store';
 import { RequestDialog } from '@/features/request-dialog';
-import { ME, personName } from '@/features/sample-data';
+import { personName } from '@/features/sample-data';
+import { useSession } from '@/features/session';
 import { useTheme } from '@/theme/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -18,6 +19,8 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const t = useTheme();
   const { state, loadScenario } = useDemoStore();
+  const session = useSession();
+  const { me } = session;
   const { demo } = useLocalSearchParams<{ demo?: string }>();
 
   // Development shortcut to jump straight to a state, e.g. mobile://home?demo=transferring
@@ -39,9 +42,9 @@ export default function Home() {
           paddingTop: insets.top,
           paddingHorizontal: 16,
         }}>
-        <Avatar emoji={ME.emoji} label={personName(ME)} size="sm" />
+        <Avatar emoji={me.emoji} label={personName(me)} size="sm" />
         <Text tone="muted" style={{ flexShrink: 1 }} numberOfLines={1}>
-          {personName(ME)} <Text tone="muted" size={12}>(You)</Text>
+          {personName(me)} <Text tone="muted" size={12}>(You)</Text>
         </Text>
         <View style={{ flex: 1 }} />
         {hasConnections ? (
@@ -54,7 +57,21 @@ export default function Home() {
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24, alignItems: 'center' }}>
         <View style={{ width: '100%', maxWidth: 512, gap: 16 }}>
-          {hasConnections ? (
+          {session.status === 'loading' ? (
+            <ActivityIndicator color={t.foreground} style={{ marginTop: 48 }} />
+          ) : session.status === 'error' ? (
+            <View style={{ gap: 12, marginTop: 24, alignItems: 'center' }}>
+              <Text size={18} style={{ textAlign: 'center' }}>
+                Couldn’t sign in
+              </Text>
+              <Text tone="muted" style={{ textAlign: 'center' }}>
+                {session.message}
+              </Text>
+              <Button variant="secondary" onPress={session.retry}>
+                Try again
+              </Button>
+            </View>
+          ) : hasConnections ? (
             <>
               <Text tone="muted">
                 To send files, tap the {'"'}Send Files{'"'} button in a connection.
