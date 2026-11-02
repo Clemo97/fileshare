@@ -2,12 +2,16 @@ import { Stack } from 'expo-router';
 
 import { DemoStoreProvider } from '@/features/demo-store';
 import { ME } from '@/features/sample-data';
-import { startSpikeRunner } from '@/spike/runner';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 // Phase 1 spike only (see spike/README.md): polls the local test server for jobs.
 // Off unless started with EXPO_PUBLIC_SPIKE=1. Remove once Phase 3 has replaced it.
-if (__DEV__ && process.env.EXPO_PUBLIC_SPIKE === '1') startSpikeRunner();
+// Loaded with require() so release builds and the server export never pull in
+// react-native-webrtc, which only exists on native.
+if (__DEV__ && process.env.EXPO_PUBLIC_SPIKE === '1') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('@/spike/runner').startSpikeRunner();
+}
 
 function RootStack() {
   const theme = useTheme();
