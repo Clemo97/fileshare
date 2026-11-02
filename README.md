@@ -24,7 +24,7 @@ An iOS and Android app is being built with [Expo](https://expo.dev) and React Na
 ### Connecting the mobile app to Supabase
 
 1. Create a [Supabase](https://supabase.com) project and turn on anonymous sign-ins (Authentication > Sign In / Providers).
-2. Apply the migrations in [`file-share-rtc/supabase/migrations`](file-share-rtc/supabase/migrations) to it. The newest one adds `create_pairing_code()` and `redeem_pairing_code()`, which replace the web app's server actions so a phone can pair without the service-role key. With the [Supabase CLI](https://supabase.com/docs/guides/cli):
+2. Apply the migrations in [`file-share-rtc/supabase/migrations`](file-share-rtc/supabase/migrations) to it. (Steps 1 to 3 can also be done in one go with [`file-share-rtc/supabase/tools/provision.py`](file-share-rtc/supabase/tools/provision.py), which creates the project, enables anonymous sign-ins, applies the migrations and writes `.env.local`; read its header first.) The newest one adds `create_pairing_code()` and `redeem_pairing_code()`, which replace the web app's server actions so a phone can pair without the service-role key. With the [Supabase CLI](https://supabase.com/docs/guides/cli):
    ```bash
    cd file-share-rtc
    npx supabase link --project-ref <your-project-ref>

@@ -8,9 +8,9 @@ Written on 2026-11-02 so that another engineer, or another AI system, can take t
 
 **What this is.** A peer-to-peer file sharing product. The original is a Next.js web app (`file-share-rtc/`) that moves files directly between browsers over WebRTC, with Supabase for sign-in, pairing and signaling. This work builds an iOS and Android app for it with Expo and React Native (`apps/mobile/`), reusing the same backend and the same wire protocol.
 
-**Where it stands, in one paragraph.** The mobile app's screens are finished and run on an iPad Air, a Galaxy S23 Ultra and two iOS simulators, but on sample data. A WebRTC spike proved that a phone can exchange files with a browser using the web app's protocol. Real pairing between two devices through Supabase is **written, unit-tested at the SQL level, and type-checked, but has never run against a real Supabase project**, because no project exists yet. File transfer between devices is still simulated.
+**Where it stands, in one paragraph.** The mobile app's screens are finished. **Real pairing through Supabase works**: a hosted free-plan project exists, the pairing code was tested against it (33 live checks) and was driven end to end through the app's actual UI on two iOS simulators, where each device generated or entered a code and then listed the other as a connection. A WebRTC spike proved that a phone can exchange files with a browser using the web app's protocol. **File transfer between devices is still simulated**, and there is no TURN server, which the owner's network probably needs for real transfers.
 
-**A task was paused mid-way.** The owner authorized setting up a hosted Supabase project using a personal access token kept in 1Password, then said "pause the supabase token first" and asked for this document. Nothing was created or changed in their Supabase account (only read-only calls were made). **Do not resume without the owner saying so.** Section 9 has the full state and a plan.
+**The Supabase setup was done on 2026-11-02.** The owner authorized it using a personal access token kept in 1Password, paused it once to ask for this document, then told it to continue. Section 9 records what was created, how it was verified, the rules for the token, and how to redo it. Free-plan projects are paused after a period of inactivity (about a week, **[from memory; check current rules]**): if the app ever shows "Couldn't sign in", check whether the project is paused in the dashboard.
 
 **Do these first, in this order:**
 
@@ -32,7 +32,9 @@ fileshare/                         git repo, branch `react-native-migration` (th
 │   ├── REACT_NATIVE_PLAN.md       the migration plan, with phase results (read §5, §6, §6.1 and §9)
 │   └── supabase/
 │       ├── migrations/            4 original migrations + 1 new: 20261102120000_pairing-functions.sql
-│       └── tests/                 NEW: SQL tests run in PGlite (no Docker). `npm install && npm test`
+│       ├── tests/                 SQL tests in PGlite (no Docker): `npm install && npm test`;
+│       │                          and e2e-live-pairing.mjs, a live test that needs a real project (§5)
+│       └── tools/provision.py     creates and configures the hosted project (§9)
 └── apps/mobile/                   the Expo / React Native app (all new)
     ├── AGENTS.md, CLAUDE.md       agent instructions (CLAUDE.md just imports AGENTS.md)
     ├── app.json                   Expo config: the ONLY place native behavior should be configured
@@ -63,8 +65,8 @@ Other docs worth reading: `file-share-rtc/REACT_NATIVE_PLAN.md` (the why behind 
 | Xcode MCP server + Apple's agent skills | Set up | §6.3 |
 | iPad support and rotation | Done; the owner confirmed it works | `app.json`, built Info.plist checked, owner's report |
 | Android APK on the owner's S23 Ultra | Installed and running | Process alive, screenshot, no crash in logcat |
-| **Real pairing via Supabase** | **Written, not run against a backend** | Typecheck, lint, export checks, 28 SQL tests (§5, §10) |
-| Hosted Supabase project | **Does not exist** | Read-only API calls: 0 projects |
+| **Real pairing via Supabase** | **Works against a real project** | 33-check live test, plus the app's UI driven on two simulators (§5, §10) |
+| Hosted Supabase project | **Exists**: free plan, name `data-loom`, Frankfurt (`eu-central-1`) | Management API calls and the checks above (§9) |
 | File transfer over WebRTC in the app | **Not wired**; simulated with timers | n/a |
 | TURN/STUN | **Not configured** anywhere | n/a |
 
@@ -85,12 +87,12 @@ Run `git log --oneline` for the current picture. Older history (the scaffold, sp
 
 | Device | What is on it | Contains the Supabase code? |
 |---|---|---|
-| iPad Air 11-inch (M2), physical | iOS **Release** build from 17:32 (local time) on 2026-11-02 (JS bundled, rotation works) | **No** |
-| Galaxy S23 Ultra (SM-S918B, Android 17), physical | Release APK from 17:45 (arm64 only, R8 shrinking off) | **No** |
-| Simulators: iPhone 17 and iPhone 18 Pro (iOS 27.2) | Debug build with the **latest code**, in demo mode | Yes (inactive: no env set) |
+| iPad Air 11-inch (M2), physical | iOS **Release** build (JS bundled, rotation works), installed after the project existed | **Yes**, and signed in for real as "Blue Squirrel" (seen in the database) |
+| Galaxy S23 Ultra (SM-S918B, Android 17), physical | Release APK (arm64 only, R8 shrinking off), installed after the project existed | **Yes**, and signed in for real as "Violet Dog" (seen in the database) |
+| Simulators: iPhone 17 and iPhone 18 Pro (iOS 27.2) | Debug build with the latest code; Supabase settings reach it through the running Metro (G16) | **Yes**: "Blue Bear" and "Blue Snail", paired with each other in the UI test |
 | Simulator: iPad Pro 11-inch (M5) (iOS 27.2) | Booted, but **no build of the app** (that build was stopped to free the build folder for the physical iPad) | n/a |
 
-Both physical devices run the **older demo build**, so their "connections" are still simulated. To test real pairing they must be rebuilt after `.env.local` exists.
+Both physical devices now run builds with the Supabase settings inlined (checked by searching each bundle for the project URL and public key). **The iPad and the S23 have not been paired with each other yet** (each has 0 connections): that needs a person to generate a code on one and enter it on the other. Check the result in the database, not only on screen.
 
 There is no plain "iPhone 18" simulator in Xcode 27.2, only iPhone 18 Pro and Pro Max.
 
@@ -171,7 +173,9 @@ The new migration adds the two functions and `pairing_attempts` (section 3.4).
 
 **Tests:** `file-share-rtc/supabase/tests/pairing.test.mjs`, run with `cd file-share-rtc/supabase/tests && npm install && npm test`. It applies all five migrations in PGlite (Postgres in WASM; no Docker), stubs `auth.users`, `auth.uid()` and the `anon`/`authenticated` roles, and runs 28 checks: code shape and replacement, expiry freeing, single use, own-code rejection, the 5-attempt limit and its 10-minute window, connection created with the right orientation, no duplicate connections, role permissions, and what a stranger can and cannot see. **28 passed on 2026-11-02**, run both from the scratch location and from the repo copy.
 
-**What this does not prove:** Supabase's real auth, PostgREST, Realtime, or any deployed project. It also assumes the stubs match Supabase, in particular that default privileges grant `anon` and `authenticated` execute rights (the migration revokes `anon` explicitly).
+**What those SQL tests do not prove:** Supabase's real auth, PostgREST or Realtime. The live test below covers those against the real project.
+
+**Live test:** `node file-share-rtc/supabase/tests/e2e-live-pairing.mjs` (reads URL and public key from `apps/mobile/.env.local`, borrows `@supabase/supabase-js` from `apps/mobile/node_modules`). It signs in two anonymous users and runs the app's real queries and Realtime subscriptions: profiles with colour and animal, creating and redeeming codes, the creator receiving the redemption event, both sides receiving a `user_connections` event, the app's embedded connections query on both sides, single use, the attempt limit, direct inserts refused by row-level security (including a pairing no redemption supports), an unauthenticated client refused, and deleting a connection. **33 of 33 passed on 2026-11-02.** It leaves two throwaway users: delete them from both `auth.users` and `public.users` (G17; the script prints their ids and the SQL).
 
 ---
 
@@ -272,36 +276,47 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 
 **G15. `npm audit` reports 26 moderate vulnerabilities** in `apps/mobile` after installing the Supabase packages. Not investigated.
 
+**G16. Writing `.env.local` while debug apps are running makes them sign in.** A running Metro hands the new values to already-running debug apps, which then create real anonymous users in the project by themselves. This happened: both simulator apps signed in one minute after the file was written. It is also proof the app's sign-in works. Expect these extra accounts, or stop the apps first.
+
+**G17. Deleting an account leaves its profile behind.** In the original schema `public.users` has no foreign key to `auth.users`, so `delete from auth.users` leaves an orphan `public.users` row (with its pairing codes, attempts and so on). Delete the id from **both** tables; deleting from `public.users` cascades to the dependent rows.
+
+**G18. Migrations were applied through the Management API's SQL endpoint, not the CLI.** That needs no database password. To keep `supabase db push` consistent later, `provision.py` writes `supabase_migrations.schema_migrations` itself, mirroring what the CLI stores (version, name, empty statements). **[unverified]** against a real `db push`. The CLI itself needs the database password, which was random and not kept: reset it in the dashboard (Project Settings, Database).
+
+**G20. A naive search for `sb_secret_` in a built bundle gives a false positive.** `supabase-js` has `key.startsWith("sb_secret_")` in its own code, so every bundle that includes it contains that literal. Judge a hit by the library source (`grep` the package), by the shape of what follows, and by what your own `.env.local` holds (here: a publishable key only). Never go looking for the real secret key to compare: it must not be read out.
+
+**G19. The simulator tool redraws late.** After typing or tapping, screenshots can show the old screen for several seconds ("Typed 4 characters" with an empty field was just lag). Wait three to five seconds before judging a screen.
+
 ---
 
-## 9. Supabase: the paused task
+## 9. Supabase: what exists and how it was set up
 
-### 9.1 What is known (read-only calls made on 2026-11-02, around 18:40 local time)
+### 9.1 State on 2026-11-02
 
-- The owner wants a **hosted** Supabase project (no local Docker setup). They stored a personal access token in 1Password and authorized its use for setup, **then asked to pause**.
-- Token location: the owner's 1Password, in an item of category API Credential whose notes say "supabase personal access token"; the token is that item's concealed `credential` field. **The vault and item names are deliberately not written here because this repository is public: ask the owner for them.** The reference then has the form `op://<vault>/<item>/credential`.
-- The token **works**: `GET /v1/organizations` and `GET /v1/projects` on `https://api.supabase.com/v1` returned HTTP 200.
-- One organization, named **"Personal Projects"**, on the **free** plan (its slug is omitted because the repo is public; `GET /v1/organizations` returns it). **Zero projects.** So creating one costs nothing (free plan limits: a small number of active projects, and inactive projects are paused; check current limits).
-- A call to `GET /v1/projects/available-regions?organization_slug=...` returned 401 only because of the empty-token glitch (G14); the endpoint and its output are **unverified**. The region was not chosen (it cannot be changed later): pick one deliberately or ask the owner where they are.
-- **Nothing was created, written or changed.** The token was never printed, logged or saved.
+- **Project:** name `data-loom`, **free plan**, region `eu-central-1` (Frankfurt), in the owner's single organization ("Personal Projects", on the free plan). Created by `file-share-rtc/supabase/tools/provision.py`. The project ref, URL and organization slug are not recorded here because this repository is public; the URL is in `apps/mobile/.env.local`.
+- **Region choice:** Supabase's own recommendation was `us-east-2` (Americas), which looked wrong for the owner's location. Round-trip time from the owner's Mac to each offered region was measured instead: Singapore 141 ms, Frankfurt 152, Mumbai 162, London 184, Ireland 192, Sao Paulo 356, `us-east-2` 295, and so on. Singapore versus Frankfurt was a statistical tie, so Frankfurt was taken as a good all-round choice. The region cannot be changed; to move it, run `provision.py` with another `SB_REGION` (there is no data worth keeping yet) and delete the old project.
+- **Anonymous sign-ins:** on. `rate_limit_anonymous_users` is 30 (per hour per IP).
+- **Schema:** all five migrations applied (10 tables in `public`, all with row-level security; 6 functions including `create_pairing_code` and `redeem_pairing_code`; the Realtime publication covers `file_sharing_request`, `file_sharing_request_response`, `pairing_code_redemptions`, `user_connections`, `web_rtc_signals`). `anon` cannot execute `create_pairing_code`; `authenticated` can.
+- **Keys:** the project has legacy `anon` and `service_role` keys and the new `publishable` and `secret` keys. The app uses the **publishable** key, which works for sign-in, RPC, Realtime and RLS (verified). `apps/mobile/.env.local` (gitignored, mode 600) holds the URL and that key. The service-role and secret keys were never read out.
+- **Database password:** random, used once at creation, not stored anywhere.
+- **Data in the project right now:** four app accounts: the two simulators ("Blue Snail", "Blue Bear", paired with each other by the UI test, which left one connection and one used code), and the two physical devices ("Blue Squirrel" on the iPad, "Violet Dog" on the S23, not yet paired).
 
 ### 9.2 Rules for the token and keys
 
-- Treat the personal access token as **full account access** (it can delete projects). Use it only for the task authorized. Read it inline and never echo it: `SUPABASE_ACCESS_TOKEN="$(op read 'op://<vault>/<item>/credential')" <command>`. Check `${#VAR}` is non-zero. Do not pass it as a command-line argument where `ps` can see it; use an environment variable (the Supabase CLI reads `SUPABASE_ACCESS_TOKEN`).
-- Do **not** use any other Supabase token you may find on the machine; use only the one the owner points you to. If you notice a token stored in plain text anywhere, tell the owner.
-- The mobile app gets only the project URL and the **anon/publishable** key (public by design). **Never** put the service-role key in the app, the repo, `.env.local` or logs. The api-keys endpoint returns the service-role key in the same response: extract only the anon key.
-- The database password required at project creation: generate it randomly, use it for `supabase link` / `db push`, and **do not store it anywhere the owner has not agreed to**. Tell them it can be reset in the dashboard.
+- The owner keeps a Supabase **personal access token** in their 1Password (an item of category API Credential whose notes say "supabase personal access token"; the token is its concealed `credential` field). **The vault and item names are deliberately not written here because this repository is public: ask the owner.** Reference form: `op://<vault>/<item>/credential`. The token worked (HTTP 200 on `GET /v1/organizations` and `/v1/projects`).
+- It is **full account access** (it can delete projects). Use it only for what the owner authorized. Read it inline and never echo it: `SUPABASE_ACCESS_TOKEN="$(op read 'op://<vault>/<item>/credential')" <command>`, with a retry loop and a length check, because `op read` sometimes returns empty (G14). Never pass it on a command line where `ps` can see it. Never write it to a file.
+- Do **not** use any other Supabase token you may find on the machine. If you notice a token stored in plain text anywhere, tell the owner. The owner may want to rotate this token now that setup is done, and to expire any 1Password share link that was pasted into a chat.
+- The mobile app gets only the project URL and the **publishable/anon** key (public by design). **Never** put the service-role or secret key in the app, the repo, `.env.local` or logs: the api-keys endpoint returns them in the same response as the public key, so extract only the public one (`provision.py` does).
 
-### 9.3 Plan to finish (each API call and CLI flag below is **[unverified]** unless noted; check the Management API reference at https://supabase.com/docs/reference/api and `npx supabase <cmd> --help`)
+### 9.3 How it was done, and how to redo it
 
-1. Get the owner's go-ahead (they paused this).
-2. Choose a region (see 9.1). Create the project in the owner's organization (`POST /v1/projects` or `npx supabase projects create`), name suggestion `data-loom`, with a random DB password. Poll until the project is healthy (a minute or two).
-3. Enable **anonymous sign-ins** (`PATCH /v1/projects/{ref}/config/auth` with `external_anonymous_users_enabled: true`, or the dashboard toggle). Without it the app shows "Couldn't sign in" with the server's message.
-4. Apply the five migrations in `file-share-rtc/supabase/migrations` in order: `npx supabase link --project-ref <ref>` then `npx supabase db push` (from `file-share-rtc`). Alternative: the Management API's SQL endpoint, but then migration history is not recorded.
-5. Fetch the project URL and **anon** key; write `apps/mobile/.env.local` (gitignored) from `.env.example`.
-6. Rebuild both devices (§7) so the values are inlined and the new native module (AsyncStorage) is included: iPad Release, S23 APK. Mind G6 when switching flavors.
-7. Test live pairing between the iPad and the phone: generate on one, enter on the other, see the connection appear on both; wrong code; expired code; sixth wrong guess; delete a connection; kill and reopen (same identity persists).
-8. Update `REACT_NATIVE_PLAN.md` and this file with what actually happened.
+1. Read the account (read-only): organizations, projects, and `GET /v1/projects/available-regions`. The endpoint shapes below were **checked against Supabase's OpenAPI spec** (`https://api.supabase.com/api/v1-json`) before use: `POST /v1/projects` (needs `name`, `organization_slug`, `db_pass`; `plan` and `region` optional, and `plan: "free"` was set explicitly so it can never default to paid), `GET /v1/projects/{ref}` (status becomes `ACTIVE_HEALTHY`), `PATCH /v1/projects/{ref}/config/auth` (`external_anonymous_users_enabled`), `POST /v1/projects/{ref}/database/query` (`{query}`), `GET /v1/projects/{ref}/api-keys`.
+2. Run `provision.py` (`SUPABASE_ACCESS_TOKEN`, `SB_ORG_SLUG`, `SB_REGION` in the environment). It creates the project (or reuses one with the same name), waits for health, enables anonymous sign-ins, applies the migrations, verifies what exists, and writes `.env.local`. The project became healthy immediately.
+3. Run `e2e-live-pairing.mjs` and clean up the throwaway users (G17).
+4. Rebuild the devices so the values are inlined into the bundle (§7). Mind G6.
+
+### 9.4 Still unverified
+
+- **Pairing between the two physical devices** (they have signed in; the pairing step itself has not been tried); kill-and-reopen keeping the same identity (session persistence in AsyncStorage); a real `supabase db push` after the hand-written migration history (G18); behavior after the free project is paused.
 
 ---
 
@@ -313,18 +328,23 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 | SQL tests (28) in PGlite | 28 passed, from the scratch copy and from the repo copy |
 | `expo export --platform web` with fake Supabase env (Node pre-render) | exit 0 |
 | iOS export with and without env, searching the Hermes bundle | with env: URL and key inlined; without: absent |
-| Debug build on iPhone 17 simulator, final code, demo mode | launched, stayed running, Welcome screen shown |
-| Debug build on iPhone 18 Pro simulator after reboot | launched, stayed running (no new crash report); **tap-through not done** |
+| Debug build on iPhone 17 and iPhone 18 Pro simulators, final code | both launched and stayed running (the 18 Pro needed a reboot, G7) |
+| Provisioning the real project (`provision.py`) | project healthy; 5 migrations applied; tables, functions, publication, privileges verified by query |
+| **Live pairing test** (`e2e-live-pairing.mjs`) against the real project | **33 of 33 passed** (run twice; the first run's weak RLS check was tightened and rerun) |
+| Release bundles for the iPad and the S23 | both contain the project URL and public key and the pairing RPC names; the APK is arm64 only |
+| Secret-key check on the APK | a first check flagged `sb_secret_`; investigated: it is the literal prefix check `isNewApiKey` in `supabase-js` itself (Hermes packs neighbouring strings together, which made the text after it look key-shaped), not a key (G20) |
+| Both physical devices after install | the database shows an Android-app account ("Violet Dog") and an iOS-app account ("Blue Squirrel"), each with a session, 0 connections |
+| **Two-simulator UI test**: iPhone 18 Pro ("Blue Snail") generates a code, iPhone 17 ("Blue Bear") types it | the creator's sheet switched to "Connection successful" by itself; each home list then showed the other device with its emoji and colour; the profile colour (blue) drove the theme |
 | Release build on the physical iPad (17:32) | installed and running; owner confirmed rotation works |
 | Release APK on the S23 Ultra (17:45) | installed; foreground, no crash logged, screen showed the connect sheet |
 
-**Not verified:** any live Supabase behavior (sign-in, RPC calls, Realtime, the `users!user_connections_user_1_id_fkey` embeds, RLS as enforced by a real project); the demo-mode flows (home, connect sheet, delete) **after** the Supabase changes (only the Welcome screen was seen); the iPad layout in landscape beyond the owner's "it worked"; Android in landscape; anything about real-device performance.
+**Not verified:** the new builds on the physical iPad and S23 (§2.3, §9.4); the connection card's Delete button in the app's UI (the delete query itself is covered by the live test); wrong-code and too-many-attempts messages in the app's UI (the server side is covered); the offline demo mode after the Supabase changes (the app was seen only with Supabase configured); the iPad layout in landscape beyond the owner's "it worked"; Android in landscape; real-device performance.
 
 ---
 
 ## 11. Known unknowns and risks
 
-1. **Live Supabase behavior is unproven.** Likely trouble spots: anonymous sign-ins disabled; the PostgREST embed names; Realtime delivery for `pairing_code_redemptions` (the poll fallback covers the creator side); DELETE events from Realtime may not reach the other device (it refetches on foreground).
+1. **Live behavior is proven on simulators and by script, not yet on the physical devices.** Realtime delivery worked in every run (redemption and `user_connections` inserts on both sides, and a DELETE event), and the app also polls and refetches on foreground as a fallback. Not yet seen: Realtime across a flaky mobile network, and a long-lived session after the app has been suspended.
 2. **4-digit codes and free anonymous sign-ins** mean the attempt limit is not a real brute-force defence (an attacker can create accounts). Longer codes or a global limit are follow-ups (plan §2.3).
 3. **Two pairing mechanisms** (web server actions vs the new functions) and different moments for creating `user_connections` (§3.4).
 4. **No TURN**, and the owner's network probably blocks direct device-to-device WebRTC. Transfers will not work between the iPad and phone until TURN exists (plan: Cloudflare STUN is free; Cloudflare TURN has a free tier, pricing undated in the plan).
@@ -334,7 +354,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 8. **Camera, microphone and Bluetooth permissions** are added to the manifests by the WebRTC config plugin although a data-only app does not need them (plan §6.1 "Smaller things").
 9. **Android R8 is off** in the release APK (G3).
 10. **Android rotation** will unlock when `android/` is regenerated; landscape layouts unchecked.
-11. **Stale builds on the physical devices** (§2.3).
+11. **Builds on the physical devices** (§2.3): both run the Supabase-enabled Release builds. If a device ever shows sample data ("Violet Turtle" and the like), it has an old or unconfigured build. Anything built without `.env.local` present falls back to demo mode silently.
 12. **`web.output: "server"`** is left over from the Expo template and is what forces the Node pre-render; the app is native-only. Changing it to `"single"` would avoid that class of problem **[unverified]**, but was not done.
 13. App Store/Play: nothing submitted. Advice given: TestFlight ($99/yr Apple Developer Program) first, Android as a direct APK until the app does real transfers; Play personal accounts need a 12-tester, 14-day closed test. Fees and rules came from search results, mostly third-party, and need confirming on official pages.
 
@@ -342,7 +362,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 
 ## 12. Suggested roadmap
 
-1. Finish Supabase setup and live pairing test (§9.3). The pairing code is already committed, but untested against a real project, so expect fixes.
+1. Pair the owner's iPad ("Blue Squirrel") and S23 ("Violet Dog") for real (generate on one, enter on the other); confirm both lists update and that `user_connections` has the row (the query in §9.3 step 3's cleanup shows how to read the database); test kill-and-reopen identity persistence. Then decide whether to rotate the Supabase token (§9.2).
 2. Fix the Android shrinking properly (keep rules); decide Android rotation; decide the team-ID and bundle-ID questions.
 3. Plan Phase 2 remainder: TURN credentials from a Supabase Edge Function; point the web app at the new functions and remove its server actions (and decide where the connection row is created).
 4. Plan Phase 3: extract `packages/core` (XState machines, `FileSource`/`FileSink`, protocol v2 from plan §6.1: receiver-ready handshake, ack window of 16 chunks with at most 64 in flight, synchronous disk writes on the receiver).
@@ -358,7 +378,7 @@ Open decisions for the owner are listed in plan §11 (package manager, TURN prov
 - Commits happen **only when asked**. Messages are short and imperative, with a body; the repo's harness adds a `Co-Authored-By` trailer. The owner chose to stay on `react-native-migration` rather than create a branch.
 - The owner knows iOS well and **Android not at all**: explain Android steps plainly and do the mechanical parts for them.
 - They prefer to see things running on **real devices** (iPad Air, S23 Ultra).
-- External accounts and money: ask first. The Supabase work was explicitly authorized and then explicitly paused. The organization is on the free plan.
+- External accounts and money: ask first. The Supabase work was explicitly authorized, paused once, then resumed on the owner's instruction. The organization is on the free plan, so creating the project cost nothing.
 - They interrupt and redirect often; stop what you are doing when told to, and say what state you left things in.
 - Be honest about what is verified: they have caught claims that were really assumptions.
 
@@ -369,6 +389,6 @@ Open decisions for the owner are listed in plan §11 (package manager, TURN prov
 - Repo: `~/Documents/personal-projects/fileshare`, branch `react-native-migration`.
 - App identifiers: iOS bundle ID and Android package `com.anonymous.mobile` (placeholder); Expo scheme `mobile`; Xcode workspace `apps/mobile/ios/mobile.xcworkspace`, scheme and target `mobile`.
 - Env variables the app reads: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (and the dev-only `EXPO_PUBLIC_SPIKE=1` for the throwaway harness).
-- Supabase: one free-plan organization, no projects as of 2026-11-02 (details in §9; identifiers omitted because the repo is public).
+- Supabase: one project, `data-loom`, free plan, Frankfurt, created 2026-11-02 (details in §9; identifiers omitted because the repo is public).
 - Find devices: `xcrun devicectl list devices`, `xcrun simctl list devices`, `~/Library/Android/sdk/platform-tools/adb devices -l`.
 - Crash reports for the app: `~/Library/Logs/DiagnosticReports/mobile-*.ips`.
