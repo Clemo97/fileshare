@@ -1,14 +1,16 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AccountDialog } from '@/features/account-dialog';
 import { ConnectionCard } from '@/features/connection-card';
 import { SCENARIOS, useDemoStore, type Scenario } from '@/features/demo-store';
 import { RequestDialog } from '@/features/request-dialog';
 import { personName } from '@/features/sample-data';
 import { useSession } from '@/features/session';
 import { useTransfer } from '@/features/transfer-provider';
+import { PRIVACY_POLICY_URL } from '@/lib/links';
 import { useTheme } from '@/theme/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -24,6 +26,8 @@ export default function Home() {
   const { me } = session;
   const { demo, sendTest, n } = useLocalSearchParams<{ demo?: string; sendTest?: string; n?: string }>();
   const transfers = useTransfer();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const privacyUrl = PRIVACY_POLICY_URL;
 
   // Development shortcut to jump straight to a state, e.g. mobile://home?demo=transferring
   useEffect(() => {
@@ -98,10 +102,28 @@ export default function Home() {
           ) : (
             <EmptyState onConnect={openConnect} />
           )}
+
+          {session.status === 'ready' ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 8 }}>
+              {privacyUrl ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="shield"
+                  onPress={() => Linking.openURL(privacyUrl)}>
+                  Privacy policy
+                </Button>
+              ) : null}
+              <Button variant="ghost" size="sm" icon="user-x" onPress={() => setAccountOpen(true)}>
+                Delete account
+              </Button>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
       <RequestDialog />
+      <AccountDialog visible={accountOpen} onClose={() => setAccountOpen(false)} />
     </View>
   );
 }

@@ -12,6 +12,7 @@
       "bundleIdentifier": "com.anonymous.mobile",
       "supportsTablet": true,
       "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Lets this app find and connect directly to your other devices on the same Wi-Fi network to send files.",
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
@@ -45,7 +46,13 @@
           "imageWidth": 76
         }
       ],
-      "@config-plugins/react-native-webrtc"
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "This app never uses the camera. The text is required because the networking library it uses for device-to-device transfers can capture video.",
+          "microphonePermission": "This app never uses the microphone. The text is required because the networking library it uses for device-to-device transfers can capture audio."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

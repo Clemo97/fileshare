@@ -21,7 +21,7 @@ import { ME, type Person } from './sample-data';
 export type Session =
   | { status: 'demo'; me: Person }
   | { status: 'loading'; me: Person }
-  | { status: 'ready'; me: Person; userId: string }
+  | { status: 'ready'; me: Person; userId: string; deleteAccount: () => Promise<void> }
   | { status: 'error'; me: Person; message: string; retry: () => void };
 
 type Result =
@@ -82,12 +82,29 @@ export function SessionProvider({ children }: PropsWithChildren) {
     setAttempt((n) => n + 1);
   }, []);
 
+  // Apple requires an in-app way to delete an account, including one the app made by itself.
+  // The database function removes the user and everything that belongs to them (see
+  // migrations/20261102140000_delete-my-account.sql).
+  const deleteAccount = useCallback(async () => {
+    const client = supabase;
+    if (!client) return;
+
+    const { error } = await client.rpc('delete_my_account');
+    if (error) throw error;
+
+    // The token outlives the user by up to an hour. Drop it here (a local sign-out, because the
+    // server no longer knows this user) and sign in as someone new.
+    await client.auth.signOut({ scope: 'local' });
+    setResult({ status: 'loading' });
+    setAttempt((n) => n + 1);
+  }, []);
+
   const session = useMemo<Session>(() => {
     if (!supabase) return { status: 'demo', me: ME };
-    if (result.status === 'ready') return result;
+    if (result.status === 'ready') return { ...result, deleteAccount };
     if (result.status === 'error') return { ...result, me: ME, retry };
     return { status: 'loading', me: ME };
-  }, [result, retry]);
+  }, [result, retry, deleteAccount]);
 
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }

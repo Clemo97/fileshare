@@ -1,0 +1,58 @@
+# Runs on every pull request and on pushes to the long-lived branches. Nothing here needs Apple
+# or Expo credentials. These are the checks apps/mobile/AGENTS.md asks for before work is done,
+# plus the Node pre-render of the web export (HANDOFF.md G2) and the SQL tests.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, react-native-migration]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mobile:
+    name: Mobile app (types, lint, web export)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      # actions/checkout v7.0.1, actions/setup-node v7.1.0 (pinned by commit)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      # The app is native-only, but a release build still renders its routes on Node. This catches
+      # a native-only module imported at module scope. The values are fake on purpose.
+      - name: Web export (Node pre-render)
+        run: npx expo export --platform web --output-dir "$RUNNER_TEMP/web-export"
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: not-a-real-key
+
+  sql:
+    name: Supabase SQL tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: file-share-rtc/supabase/tests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: file-share-rtc/supabase/tests/package-lock.json
+      - run: npm ci
+      - run: npm test
