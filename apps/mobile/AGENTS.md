@@ -1,5 +1,7 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
+**Taking over this project? Read [`HANDOFF.md`](../../HANDOFF.md) at the repo root first.** It has the current status, what is uncommitted, how everything was built and why, a list of build traps with fixes, and what is verified versus unknown.
+
 ## Expo has changed — do not trust your training data
 
 Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:

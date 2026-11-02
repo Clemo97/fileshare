@@ -19,7 +19,20 @@ File Share RTC  aims to provide a hassle-free and secure way to share files betw
 
 ## Mobile app (work in progress)
 
-An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). It is currently a **UI preview running on sample data**: the screens are ported from the web app, but connecting devices and transferring files are simulated and not yet wired to the real Supabase and WebRTC code. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
+An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). The screens are ported from the web app. **Pairing two devices uses Supabase** once the app is configured (below); without that it runs as a **UI preview on sample data**. **Transferring files is still simulated**: it is not wired to WebRTC yet. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
+
+### Connecting the mobile app to Supabase
+
+1. Create a [Supabase](https://supabase.com) project and turn on anonymous sign-ins (Authentication > Sign In / Providers).
+2. Apply the migrations in [`file-share-rtc/supabase/migrations`](file-share-rtc/supabase/migrations) to it. The newest one adds `create_pairing_code()` and `redeem_pairing_code()`, which replace the web app's server actions so a phone can pair without the service-role key. With the [Supabase CLI](https://supabase.com/docs/guides/cli):
+   ```bash
+   cd file-share-rtc
+   npx supabase link --project-ref <your-project-ref>
+   npx supabase db push
+   ```
+3. In `apps/mobile`, copy `.env.example` to `.env.local` and fill in the project URL and the anon (or publishable) key. These values are inlined when the app is bundled, so rebuild the app after changing them.
+
+Without `.env.local` the app still runs, on sample data. Once it is set, each device signs in anonymously, and a code generated on one device can be entered on another to connect them.
 
 Screenshots from the iPhone 17 simulator (iOS 27.2):
 
