@@ -4,10 +4,12 @@ import { formatBytes } from '@/ui/format';
 
 import { useDemoStore } from './demo-store';
 import { personName } from './sample-data';
+import { useTransfer } from './transfer-provider';
 
 /** "Blue Rabbit is sending you 2 files": shown when another device asks to send files. */
 export function RequestDialog() {
-  const { state, acceptRequest, declineRequest } = useDemoStore();
+  const { state } = useDemoStore();
+  const { accept: acceptRequest, decline: declineRequest } = useTransfer();
   const request = state.request;
   const person = state.connections.find((c) => c.id === request?.connectionId)?.person;
 

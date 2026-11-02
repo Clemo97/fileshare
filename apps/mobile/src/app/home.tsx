@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { SCENARIOS, useDemoStore, type Scenario } from '@/features/demo-store';
 import { RequestDialog } from '@/features/request-dialog';
 import { personName } from '@/features/sample-data';
 import { useSession } from '@/features/session';
+import { useTransfer } from '@/features/transfer-provider';
 import { useTheme } from '@/theme/theme';
 import { Avatar } from '@/ui/avatar';
 import { Button } from '@/ui/button';
@@ -21,12 +22,26 @@ export default function Home() {
   const { state, loadScenario } = useDemoStore();
   const session = useSession();
   const { me } = session;
-  const { demo } = useLocalSearchParams<{ demo?: string }>();
+  const { demo, sendTest, n } = useLocalSearchParams<{ demo?: string; sendTest?: string; n?: string }>();
+  const transfers = useTransfer();
 
   // Development shortcut to jump straight to a state, e.g. mobile://home?demo=transferring
   useEffect(() => {
     if (__DEV__ && SCENARIOS.includes(demo as Scenario)) loadScenario(demo as Scenario);
   }, [demo, loadScenario]);
+
+  // Development shortcut: send generated test files (sizes in MB) to the first connection without
+  // the picker, e.g. mobile://home?sendTest=3,12&n=1. Change `n` to send again.
+  const firstConnectionId = state.connections[0]?.id;
+  const sentTests = useRef(new Set<string>());
+  useEffect(() => {
+    if (!__DEV__ || !sendTest || !firstConnectionId) return;
+    const key = `${sendTest}|${n ?? ''}`;
+    if (sentTests.current.has(key)) return;
+    sentTests.current.add(key);
+    const sizes = sendTest.split(',').map(Number).filter((mb) => mb > 0);
+    if (sizes.length) transfers.sendTest(firstConnectionId, sizes);
+  }, [sendTest, n, firstConnectionId, transfers]);
 
   const hasConnections = state.connections.length > 0;
   const openConnect = () => router.push('/connect');

@@ -8,7 +8,7 @@ Written on 2026-11-02 so that another engineer, or another AI system, can take t
 
 **What this is.** A peer-to-peer file sharing product. The original is a Next.js web app (`file-share-rtc/`) that moves files directly between browsers over WebRTC, with Supabase for sign-in, pairing and signaling. This work builds an iOS and Android app for it with Expo and React Native (`apps/mobile/`), reusing the same backend and the same wire protocol.
 
-**Where it stands, in one paragraph.** The mobile app's screens are finished. **Real pairing through Supabase works**: a hosted free-plan project exists, the pairing code was tested against it (33 live checks) and was driven end to end through the app's actual UI on two iOS simulators, where each device generated or entered a code and then listed the other as a connection. A WebRTC spike proved that a phone can exchange files with a browser using the web app's protocol. **File transfer between devices is still simulated**, and there is no TURN server, which the owner's network probably needs for real transfers.
+**Where it stands, in one paragraph.** The mobile app's screens are finished. **Real pairing through Supabase works**: a hosted free-plan project exists, the pairing code was tested against it (33 live checks) and was driven end to end through the app's actual UI on two iOS simulators, where each device generated or entered a code and then listed the other as a connection. A WebRTC spike proved that a phone can exchange files with a browser using the web app's protocol. **Real file transfer is built** (picker, request and accept dialog, signaling through Supabase, one WebRTC data channel per file, saving on the receiver) and was verified between two simulators with byte-identical files; it has **not** yet been tried on the physical iPad and S23, which still run an older build. There is no TURN server, which the owner's network probably needs for those two devices (§3.6).
 
 **The Supabase setup was done on 2026-11-02.** The owner authorized it using a personal access token kept in 1Password, paused it once to ask for this document, then told it to continue. Section 9 records what was created, how it was verified, the rules for the token, and how to redo it. Free-plan projects are paused after a period of inactivity (about a week, **[from memory; check current rules]**): if the app ever shows "Couldn't sign in", check whether the project is paused in the dashboard.
 
@@ -67,12 +67,12 @@ Other docs worth reading: `file-share-rtc/REACT_NATIVE_PLAN.md` (the why behind 
 | Android APK on the owner's S23 Ultra | Installed and running | Process alive, screenshot, no crash in logcat |
 | **Real pairing via Supabase** | **Works against a real project** | 33-check live test, plus the app's UI driven on two simulators (§5, §10) |
 | Hosted Supabase project | **Exists**: free plan, name `data-loom`, Frankfurt (`eu-central-1`) | Management API calls and the checks above (§9) |
-| File transfer over WebRTC in the app | **Not wired**; simulated with timers | n/a |
-| TURN/STUN | **Not configured** anywhere | n/a |
+| **Real file transfer over WebRTC in the app** | **Works between the two simulators** (picker, request dialog, accept, decline, progress on both sides, received files byte-identical). **Not yet tried on the physical iPad and S23**, which still run the older fake build. The offline demo mode still simulates transfers on purpose | §3.6, §10 |
+| STUN/TURN | STUN servers are built in. **No TURN relay exists yet**; the app asks for one through an Edge Function that has not been written (`turn-credentials`), and also accepts `EXPO_PUBLIC_ICE_SERVERS` | §3.6, §11 |
 
 ### 2.2 Commits
 
-Everything described in this file is **committed** on `react-native-migration`, and the working tree was clean when this was written. These commits were **pushed to `origin/react-native-migration` on 2026-11-02 at the owner's request** (a fast-forward: the remote was 0 commits ahead of the local branch). The remote is a public repository. Run `git fetch` before assuming the remote is unchanged. This session's commits, oldest first:
+**Not committed yet: the real file transfer work** (everything under `apps/mobile/src/transfer/`, `src/features/transfer-provider.tsx`, and the edits to `connection-card.tsx`, `demo-store.tsx`, `request-dialog.tsx`, `_layout.tsx`, `home.tsx`, `package.json`/`package-lock.json`, and this file). Run `git status` to see it. Everything else described in this file is **committed** on `react-native-migration`. Those commits were **pushed to `origin/react-native-migration` on 2026-11-02 at the owner's request** (a fast-forward: the remote was 0 commits ahead of the local branch). The remote is a public repository. Run `git fetch` before assuming the remote is unchanged. This session's commits, oldest first:
 
 - `0e33bfa` Xcode MCP hints in `apps/mobile/AGENTS.md`, plus `apps/mobile/CLAUDE.md`
 - `32a08cd` load the WebRTC spike runner lazily (fixes release builds, §8 G2)
@@ -92,7 +92,7 @@ Run `git log --oneline` for the current picture. Older history (the scaffold, sp
 | Simulators: iPhone 17 and iPhone 18 Pro (iOS 27.2) | Debug build with the latest code; Supabase settings reach it through the running Metro (G16) | **Yes**: "Blue Bear" and "Blue Snail", paired with each other in the UI test |
 | Simulator: iPad Pro 11-inch (M5) (iOS 27.2) | Booted, but **no build of the app** (that build was stopped to free the build folder for the physical iPad) | n/a |
 
-Both physical devices now run builds with the Supabase settings inlined (checked by searching each bundle for the project URL and public key). **The iPad and the S23 have not been paired with each other yet** (each has 0 connections): that needs a person to generate a code on one and enter it on the other. Check the result in the database, not only on screen.
+Both physical devices now run builds with the Supabase settings inlined (checked by searching each bundle for the project URL and public key). **The iPad and the S23 are paired with each other** (the owner confirmed it on screen and the database shows the connection "Blue Squirrel" and "Violet Dog", made 2026-11-02 16:23:55 UTC). **They still run the builds made before the real transfer work, so they still show the fake "Holiday photos.zip" transfer until they are rebuilt** (the JavaScript is bundled, so a Release build must be redone, and three native modules were added, so mind G6).
 
 There is no plain "iPhone 18" simulator in Xcode 27.2, only iPhone 18 Pro and Pro Max.
 
@@ -115,7 +115,7 @@ A shared TypeScript core (`packages/core`) used by web and mobile, receiving pla
 The app was built "UI first": screens run on `src/features/demo-store.tsx` (a reducer plus timers) and `sample-data.ts` so they could be reviewed before any networking existed. That mode is kept on purpose:
 
 - If `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` are **absent**, `src/lib/supabase.ts` exports `null` and everything behaves exactly as the old preview (`session.status === 'demo'`).
-- If they are present, the app signs in anonymously, loads the user's profile and uses real pairing and a real connections list. File transfer stays simulated either way.
+- If they are present, the app signs in anonymously, loads the user's profile and uses real pairing, a real connections list and **real file transfer** (§3.6). In demo mode transfers are still simulated.
 - The client is also `null` when `Platform.OS === 'web'`. This matters: the release build pre-renders routes on Node, and evaluating Supabase or native-only code there must not crash (G2). Verified with `npx expo export --platform web` using fake env values.
 
 ### 3.4 Pairing: how it works now
@@ -136,12 +136,37 @@ Client flow (`apps/mobile/src/app/connect.tsx`, `src/features/pairing.ts`):
 1. Device A taps "Generate Connection Code" and calls `create_pairing_code` through `client.rpc`. The sheet shows the code and a 5-minute countdown.
 2. While the code is showing, A listens for an INSERT on `pairing_code_redemptions` (Realtime, filter `pairing_code=eq.<code>`) **and** polls `hasRedemption` every 3 seconds as a fallback. When it fires, A refetches connections and shows "Connection successful".
 3. Device B types the code and calls `redeem_pairing_code`. Null gives "That code is wrong or has expired…", `too_many_attempts` gives a friendly message, a network error gives a network message (`describeError` in `src/lib/supabase.ts`). Success refetches connections and shows success.
-4. `ConnectionsSync` (`src/features/connections-sync.tsx`) keeps the list current: it fetches on sign-in, refetches on any `user_connections` Realtime event and whenever the app returns to the foreground (Realtime can miss events while suspended), and feeds the store through `syncConnections`, which keeps any in-progress simulated transfer for people who are still connected.
+4. `ConnectionsSync` (`src/features/connections-sync.tsx`) keeps the list current: it fetches on sign-in, refetches on any `user_connections` Realtime event and whenever the app returns to the foreground (Realtime can miss events while suspended), and feeds the store through `syncConnections`, which keeps any in-progress transfer (real or simulated) for people who are still connected.
 5. Deleting a connection calls `deleteConnection` when live, else only the local store.
 
 ### 3.5 Why releases are used on the physical devices
 
 The owner's Wi-Fi blocks device-to-device traffic (evidence in G1). A debug build fetches its JavaScript from Metro on the Mac over Wi-Fi, which fails there. Release builds embed the JavaScript, so they work anywhere. This also holds for real pairing: it only needs internet access to Supabase.
+
+### 3.6 Real file transfer: how it works
+
+**Why the owner once saw imaginary files:** the screens were built first on a simulation (`demo-store.tsx`), and when pairing became real the simulation kept running next to it (evidence in §10). Live mode now uses the real engine below; the simulation runs only in the offline demo.
+
+**Flow (sender "S", receiver "R"; all code in `apps/mobile/src/transfer/` plus `src/features/transfer-provider.tsx`):**
+
+1. S taps Send Files. `pickFiles()` (`files.ts`, `expo-file-system`'s `File.pickFileAsync`, multiple files) returns the chosen files. Then `runSend` in the provider runs.
+2. S inserts a `file_sharing_request` row (payload `{files:[{name,size,mimeType}]}`, `requests.ts`) and waits up to 2 minutes for a `file_sharing_request_response` row (Realtime plus a 2 s poll).
+3. R's `listenForRequests` (Realtime plus a 4 s poll plus a check when the app returns to the foreground; only unanswered requests from the last 10 minutes) puts the request in the store, which shows the existing dialog. **Accept** calls `receiveFiles`, waits until R's side is listening (`ready`), and only then writes the response row. **Cancel** writes `accepted:false`; S shows "They declined the transfer." on the card.
+4. S is the WebRTC caller (`session.ts`): it creates one data channel per file (`file:<index>`, like the web app), makes the offer and sends it through `web_rtc_signals`; R answers. ICE candidates travel the same way. `signaling.ts` listens through Realtime (filter on the remote user) **and** polls every 1.5 s, de-duplicating by row id; signals are applied one at a time in arrival order. Both sides delete their own signal rows when done.
+5. Each file then runs protocol v2 (`protocol.ts`, from plan §6.1): R sends `{ready:true}`; S waits up to 3 s, sends the metadata JSON and 50 KB chunks, at most 64 unacknowledged; R acks every 16 chunks, writes every chunk **synchronously** inside the message handler, and sends `{done:true}` when it has every byte. Files go one after another over their own channels.
+6. R saves each file under the app's cache folder (`received/<random id>/<safe name>`). The file row shows a **Save** button that opens the share sheet (`expo-sharing`) so the user can put it in Files, Photos and so on. The screen is kept awake during a transfer (`expo-keep-awake`, loaded lazily).
+
+**State** lives in the store (`demo-store.tsx`): the engine drives it through `store.engine` (`begin`, `progress`, `fileDone`, `setStatus`, `fail`, `setRequest`). Progress never moves backwards and is throttled to about 5 updates a second. A failure sets `connection.error` and returns the card to idle, where the card shows the message in red.
+
+**ICE servers** (`ice.ts`): public STUN (Cloudflare, Google), plus anything in the `EXPO_PUBLIC_ICE_SERVERS` env var (a JSON array of `RTCIceServer`), plus whatever a Supabase Edge Function named `turn-credentials` returns (**the function does not exist yet**; a missing function is remembered for 10 minutes so each transfer does not wait for it).
+
+**Native-module rule:** `react-native-webrtc`, `expo-file-system`, `expo-sharing` and `expo-keep-awake` are all loaded with a lazy `require` inside functions, never at module scope, so the Node pre-render of the release build (G2) never touches them. Keep it that way.
+
+**Dev shortcut:** `mobile://home?sendTest=3,12&n=1` generates files of those sizes in MB (byte at position `p` is `(p*131+17) & 255`, so a receiver can check them byte for byte) and sends them to the first connection without opening the picker. Change `n` to send again. Works only when `__DEV__`.
+
+**Limits and choices to know:** the whole file is never held in memory (the sender reads 50 KB at a time, the receiver writes as it goes); a transfer needs both apps open (nothing is delivered in the background); if the sender's app dies mid-transfer the receiver keeps whatever files finished and drops the unfinished one; a request that is never answered times out after 2 minutes; the connection step times out after 30 s with a message that mentions a relay server.
+
+**TURN (still open):** the owner's network refuses device-to-device traffic (§6.2), so the iPad and the S23 will probably fail to connect with STUN alone. A TURN relay needs an account with a provider (plan §2.1 names Cloudflare Realtime TURN, which has a free tier; Metered is an alternative) and short-lived credentials minted by an Edge Function. **The owner has to create the account.** For a quick test before the Edge Function exists, put the provider's credentials in `EXPO_PUBLIC_ICE_SERVERS` in `.env.local` and rebuild (it is inlined into the bundle, so it is not secret; use short-lived credentials or accept that).
 
 ---
 
@@ -149,15 +174,20 @@ The owner's Wi-Fi blocks device-to-device traffic (evidence in G1). A debug buil
 
 | File | Role |
 |---|---|
-| `src/app/_layout.tsx` | Providers: `SessionProvider` > `ThemeProvider` (user's colour) > `DemoStoreProvider` > `ConnectionsSync` + stack. Also the dev-only spike runner, **loaded with `require()` on purpose** (G2). |
+| `src/app/_layout.tsx` | Providers: `SessionProvider` > `ThemeProvider` (user's colour) > `DemoStoreProvider` > `TransferProvider` > `ConnectionsSync` + stack. Also the dev-only spike runner, **loaded with `require()` on purpose** (G2). |
 | `src/app/index.tsx` | Welcome screen. |
-| `src/app/home.tsx` | Connections list, header with the user's own "Colour Animal" name; loading and error states for sign-in; dev deep link `mobile://home?demo=<empty|connected|transferring|request>`. |
+| `src/app/home.tsx` | Connections list, header with the user's own "Colour Animal" name; loading and error states for sign-in; dev deep links `mobile://home?demo=<empty|connected|transferring|request>` and `mobile://home?sendTest=3,12&n=1` (real test send, §3.6). |
 | `src/app/connect.tsx` | The "Set Up a New Connection" sheet. Steps: `idle`, `creating`, `code`, `connecting`, `connected`, `failed` (pairing problems), `error` (the WebRTC "couldn't link" screen, reached by nothing yet). Dev deep link `mobile://connect?demo=<step>`. |
 | `src/features/session.tsx` | Anonymous sign-in, profile load, retry; recovers if the stored user no longer exists server-side (signs out and signs in anew once). Status: `demo`, `loading`, `ready`, `error`. |
 | `src/features/pairing.ts` | RPC wrappers, `hasRedemption`, `fetchConnections`, `deleteConnection`. |
 | `src/features/profiles.ts` | Maps `users` rows joined with `colors` and `animals` to the `Person` shape; lenient fallbacks. |
 | `src/features/connections-sync.tsx` | Realtime + foreground sync; `useConnectionActions`. |
-| `src/features/demo-store.tsx` | Reducer + timers. Real connection list (via `sync`), **simulated** transfers and requests. |
+| `src/features/demo-store.tsx` | The state container for connections, the current transfer (progress, per-file status, received file URIs), the pending request and per-card errors. Its timer-driven `sendFiles`/`acceptRequest`/`declineRequest` are the **offline demo only**; in live mode `transfer-provider.tsx` drives the same state through `store.engine`. |
+| `src/features/transfer-provider.tsx` | `useTransfer()`: `send`, `accept`, `decline`, `save`, `sendTest`, `available`. Demo mode delegates to the store; live mode runs the real engine (§3.6), listens for incoming requests and keeps the screen awake. |
+| `src/transfer/protocol.ts` | Protocol v2 for one file over one data channel (`sendFile`, `receiveFile`). |
+| `src/transfer/session.ts` | One WebRTC link: `sendFiles` (caller) and `receiveFiles` (callee). |
+| `src/transfer/signaling.ts`, `requests.ts`, `ice.ts` | Signal rows, request/response rows, ICE server list. |
+| `src/transfer/files.ts` | Picker, chunked reads, received-file sinks, share sheet, dev test files. |
 | `src/features/sample-data.ts` | Sample people and files; the `Person` type. |
 | `src/lib/supabase.ts` | Client (AsyncStorage persistence, `autoRefreshToken`, `detectSessionInUrl:false`), AppState-based refresh, `describeError`. |
 
@@ -282,6 +312,14 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 
 **G18. Migrations were applied through the Management API's SQL endpoint, not the CLI.** That needs no database password. To keep `supabase db push` consistent later, `provision.py` writes `supabase_migrations.schema_migrations` itself, mirroring what the CLI stores (version, name, empty statements). **[unverified]** against a real `db push`. The CLI itself needs the database password, which was random and not kept: reset it in the dashboard (Project Settings, Database).
 
+**G21. A debug app on the simulator may not repaint after a JavaScript edit.** Metro logged the changed module as bundled, yet the screen kept showing the old card (and a harmless LogBox toast, "Sending `onAnimatedValueUpdate` with no listeners registered", which predates the change). `xcrun simctl terminate <udid> com.anonymous.mobile` then `launch` loaded the fresh bundle.
+
+**G22. `npx expo install expo-sharing` edits `app.json`.** It adds the package's config plugin with the "receive shared files" settings. This app only *sends* to the share sheet, so the plugin entry was removed again; check `git diff apps/mobile/app.json` after installing any Expo module.
+
+**G23. `npx expo run:ios` from inside `ios/` fails** with "expected package.json path .../ios/package.json". Run it from `apps/mobile`.
+
+**G24. Opening a deep link on a simulator asks "Open in mobile?" once per device.** Tap Open. The dev shortcut `mobile://home?sendTest=...` needs a connection to exist and a changed `n` value to send again.
+
 **G20. A naive search for `sb_secret_` in a built bundle gives a false positive.** `supabase-js` has `key.startsWith("sb_secret_")` in its own code, so every bundle that includes it contains that literal. Judge a hit by the library source (`grep` the package), by the shape of what follows, and by what your own `.env.local` holds (here: a publishable key only). Never go looking for the real secret key to compare: it must not be read out.
 
 **G19. The simulator tool redraws late.** After typing or tapping, screenshots can show the old screen for several seconds ("Typed 4 characters" with an empty field was just lag). Wait three to five seconds before judging a screen.
@@ -298,7 +336,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 - **Schema:** all five migrations applied (10 tables in `public`, all with row-level security; 6 functions including `create_pairing_code` and `redeem_pairing_code`; the Realtime publication covers `file_sharing_request`, `file_sharing_request_response`, `pairing_code_redemptions`, `user_connections`, `web_rtc_signals`). `anon` cannot execute `create_pairing_code`; `authenticated` can.
 - **Keys:** the project has legacy `anon` and `service_role` keys and the new `publishable` and `secret` keys. The app uses the **publishable** key, which works for sign-in, RPC, Realtime and RLS (verified). `apps/mobile/.env.local` (gitignored, mode 600) holds the URL and that key. The service-role and secret keys were never read out.
 - **Database password:** random, used once at creation, not stored anywhere.
-- **Data in the project right now:** four app accounts: the two simulators ("Blue Snail", "Blue Bear", paired with each other by the UI test, which left one connection and one used code), and the two physical devices ("Blue Squirrel" on the iPad, "Violet Dog" on the S23, not yet paired).
+- **Data in the project right now:** four app accounts in two connections: the two simulators ("Blue Snail", "Blue Bear", paired by the UI test) and the two physical devices ("Blue Squirrel" on the iPad, "Violet Dog" on the S23, paired by the owner). The file-transfer tables (`file_sharing_request`, `file_sharing_request_response`, `web_rtc_signals`) hold 0 rows.
 
 ### 9.2 Rules for the token and keys
 
@@ -316,7 +354,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 
 ### 9.4 Still unverified
 
-- **Pairing between the two physical devices** (they have signed in; the pairing step itself has not been tried); kill-and-reopen keeping the same identity (session persistence in AsyncStorage); a real `supabase db push` after the hand-written migration history (G18); behavior after the free project is paused.
+- Kill-and-reopen keeping the same identity **on the physical devices** (it was verified on the iPhone 18 Pro simulator: after a full restart the app was still "Blue Snail" with "Blue Bear" connected); a real `supabase db push` after the hand-written migration history (G18); behavior after the free project is paused.
 
 ---
 
@@ -334,11 +372,18 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 | Release bundles for the iPad and the S23 | both contain the project URL and public key and the pairing RPC names; the APK is arm64 only |
 | Secret-key check on the APK | a first check flagged `sb_secret_`; investigated: it is the literal prefix check `isNewApiKey` in `supabase-js` itself (Hermes packs neighbouring strings together, which made the text after it look key-shaped), not a key (G20) |
 | Both physical devices after install | the database shows an Android-app account ("Violet Dog") and an iOS-app account ("Blue Squirrel"), each with a session, 0 connections |
+| "Send Files" showing sample files on real connections (owner's report) | **Cause confirmed.** `connection-card.tsx` called the demo store's `sendFiles`, which waits 1.8 s and runs a timer-driven "transfer" of `FILES.slice(0, 2)` from `sample-data.ts` (exactly "Holiday photos.zip" and "Budget 2026.xlsx"). There is no file picker, no WebRTC and no signaling in the app screens. The database agreed: after the owner's taps, `file_sharing_request`, `file_sharing_request_response` and `web_rtc_signals` held 0 rows, so nothing reached the other device |
+| Interim fix: Send Files disabled on real connections (**superseded** by the real engine, kept for the record) | on the iPhone 18 Pro simulator the card shows "Sending files isn't available yet." and a greyed-out button; tapping it for 6 seconds started nothing. Typecheck and lint pass |
+| App restart on a simulator | same identity ("Blue Snail") and the "Blue Bear" connection still listed after `terminate` + `launch` |
 | **Two-simulator UI test**: iPhone 18 Pro ("Blue Snail") generates a code, iPhone 17 ("Blue Bear") types it | the creator's sheet switched to "Connection successful" by itself; each home list then showed the other device with its emoji and colour; the profile colour (blue) drove the theme |
+| **Real transfer, two simulators** (iPhone 18 Pro sends to iPhone 17 using `sendTest=3,12`) | request dialog appeared on the receiver, Accept started the link, both cards finished with every file ticked and a Save button on the receiver; the two received files on the receiver's disk were **3,145,728 and 12,582,912 bytes and matched the expected byte pattern for every byte** |
+| Decline path (same pair, `sendTest=2`, receiver taps Cancel) | the sender's card showed "They declined the transfer." in red and went back to idle; nothing was written on the receiver |
+| Send Files with the real picker (simulator) | the system document picker opened (empty "Recents"); closing it left the card unchanged. **Not tried:** actually choosing files in the picker (the simulator has none to choose) |
+| After the transfer work: `npx tsc --noEmit`, `npx expo lint`, `npx expo export --platform web` with fake env | all exit 0 (the web export builds the Node render bundle without pulling in any native module) |
 | Release build on the physical iPad (17:32) | installed and running; owner confirmed rotation works |
 | Release APK on the S23 Ultra (17:45) | installed; foreground, no crash logged, screen showed the connect sheet |
 
-**Not verified:** the new builds on the physical iPad and S23 (§2.3, §9.4); the connection card's Delete button in the app's UI (the delete query itself is covered by the live test); wrong-code and too-many-attempts messages in the app's UI (the server side is covered); the offline demo mode after the Supabase changes (the app was seen only with Supabase configured); the iPad layout in landscape beyond the owner's "it worked"; Android in landscape; real-device performance.
+**Not verified:** real transfer on the physical iPad and S23 (§2.3, §3.6, §11); choosing real files in the picker; the Save button's share sheet; a transfer interrupted midway (killing one app); several connections at once; large files (hundreds of MB) and real-device throughput; the new builds on the physical iPad and S23 (§2.3, §9.4); the connection card's Delete button in the app's UI (the delete query itself is covered by the live test); wrong-code and too-many-attempts messages in the app's UI (the server side is covered); the offline demo mode after the Supabase changes (the app was seen only with Supabase configured); the iPad layout in landscape beyond the owner's "it worked"; Android in landscape; real-device performance.
 
 ---
 
@@ -347,7 +392,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 1. **Live behavior is proven on simulators and by script, not yet on the physical devices.** Realtime delivery worked in every run (redemption and `user_connections` inserts on both sides, and a DELETE event), and the app also polls and refetches on foreground as a fallback. Not yet seen: Realtime across a flaky mobile network, and a long-lived session after the app has been suspended.
 2. **4-digit codes and free anonymous sign-ins** mean the attempt limit is not a real brute-force defence (an attacker can create accounts). Longer codes or a global limit are follow-ups (plan §2.3).
 3. **Two pairing mechanisms** (web server actions vs the new functions) and different moments for creating `user_connections` (§3.4).
-4. **No TURN**, and the owner's network probably blocks direct device-to-device WebRTC. Transfers will not work between the iPad and phone until TURN exists (plan: Cloudflare STUN is free; Cloudflare TURN has a free tier, pricing undated in the plan).
+4. **No TURN**, and the owner's network probably blocks direct device-to-device WebRTC. The simulators connect directly because they share one machine; the iPad and S23 probably will not until a relay exists (§3.6). If it fails the card says a relay server is needed. Plan: Cloudflare STUN is free; Cloudflare TURN has a free tier, pricing undated in the plan.
 5. **Throughput** is bounded by the JS thread (base64 per chunk): about 10 MB/s on the iOS simulator, about 2.5 MB/s on the Android emulator via TURN. Real phones unmeasured.
 6. **Backgrounding** suspends transfers and Realtime on iOS; v1 design is "keep the app open".
 7. **Bundle ID is a placeholder** (`com.anonymous.mobile`); it cannot be changed once an app exists in a store. Pick a real one before the first upload.
@@ -362,11 +407,11 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 
 ## 12. Suggested roadmap
 
-1. Pair the owner's iPad ("Blue Squirrel") and S23 ("Violet Dog") for real (generate on one, enter on the other); confirm both lists update and that `user_connections` has the row (the query in §9.3 step 3's cleanup shows how to read the database); test kill-and-reopen identity persistence. Then decide whether to rotate the Supabase token (§9.2).
+1. **Try real transfer on the iPad and S23** (needs the rebuilt Release builds, §7). If the link does not form, get a TURN account from the owner and add the `turn-credentials` Edge Function (§3.6). Then decide whether to rotate the Supabase token (§9.2).
 2. Fix the Android shrinking properly (keep rules); decide Android rotation; decide the team-ID and bundle-ID questions.
 3. Plan Phase 2 remainder: TURN credentials from a Supabase Edge Function; point the web app at the new functions and remove its server actions (and decide where the connection row is created).
 4. Plan Phase 3: extract `packages/core` (XState machines, `FileSource`/`FileSink`, protocol v2 from plan §6.1: receiver-ready handshake, ack window of 16 chunks with at most 64 in flight, synchronous disk writes on the receiver).
-5. Plan Phase 4: wire real sending and receiving into the app (document picker, `expo-file-system`, share sheet), replacing the simulated transfers in `demo-store.tsx`.
+5. Plan Phase 4 is mostly done in `src/transfer/` (picker, file I/O, share sheet, requests, signaling). What remains of it is hardening (resume or retry, background behaviour, cancel button during a transfer) and, when Phase 3 happens, moving the protocol into `packages/core`.
 6. Phase 5/6: hardening, TestFlight and Play internal testing.
 
 Open decisions for the owner are listed in plan §11 (package manager, TURN provider, scope, real-device testing).

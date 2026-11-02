@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { ConnectionsSync } from '@/features/connections-sync';
 import { DemoStoreProvider } from '@/features/demo-store';
 import { SessionProvider, useSession } from '@/features/session';
+import { TransferProvider } from '@/features/transfer-provider';
 import { ThemeProvider, useTheme } from '@/theme/theme';
 
 // Phase 1 spike only (see spike/README.md): polls the local test server for jobs.
@@ -31,8 +32,10 @@ function ThemedApp() {
   return (
     <ThemeProvider name={me.colorId}>
       <DemoStoreProvider>
-        <ConnectionsSync />
-        <RootStack />
+        <TransferProvider>
+          <ConnectionsSync />
+          <RootStack />
+        </TransferProvider>
       </DemoStoreProvider>
     </ThemeProvider>
   );

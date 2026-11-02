@@ -21,6 +21,8 @@ export type Transfer = {
   files: FileMeta[];
   /** Bytes transferred per file. */
   transferred: number[];
+  /** Where each received file was saved (real transfers only). */
+  uris?: (string | undefined)[];
 };
 
 export type Connection = {
@@ -28,9 +30,16 @@ export type Connection = {
   person: Person;
   status: 'idle' | 'sending-request' | 'connecting' | 'connected';
   transfer?: Transfer;
+  /** Why the last real transfer failed or was refused. Cleared when a new one starts. */
+  error?: string;
 };
 
-export type IncomingRequest = { connectionId: string; files: FileMeta[] };
+export type IncomingRequest = {
+  connectionId: string;
+  files: FileMeta[];
+  /** The file_sharing_request row, for a real request. */
+  requestId?: string;
+};
 
 type State = { connections: Connection[]; request?: IncomingRequest };
 
@@ -86,7 +95,26 @@ type Action =
   | { type: 'remove'; id: string }
   | { type: 'patch'; id: string; patch: Partial<Connection> }
   | { type: 'advance'; id: string }
-  | { type: 'clearRequest' };
+  | { type: 'clearRequest' }
+  // Used by the real transfer engine (transfer-provider.tsx)
+  | { type: 'begin'; id: string; direction: Transfer['direction']; files: FileMeta[] }
+  | { type: 'progress'; id: string; index: number; bytes: number }
+  | { type: 'fileDone'; id: string; index: number; uri?: string }
+  | { type: 'status'; id: string; status: Connection['status'] }
+  | { type: 'fail'; id: string; error: string }
+  | { type: 'request'; request?: IncomingRequest };
+
+/** Applies `change` to one connection's transfer, if it has one. */
+const withTransfer = (
+  state: State,
+  id: string,
+  change: (transfer: Transfer) => Transfer,
+): State => ({
+  ...state,
+  connections: state.connections.map((c) =>
+    c.id === id && c.transfer ? { ...c, transfer: change(c.transfer) } : c,
+  ),
+});
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -128,6 +156,57 @@ function reducer(state: State, action: Action): State {
       };
     case 'clearRequest':
       return { ...state, request: undefined };
+    case 'begin':
+      return {
+        ...state,
+        connections: state.connections.map((c) =>
+          c.id === action.id
+            ? {
+                ...c,
+                error: undefined,
+                transfer: {
+                  direction: action.direction,
+                  files: action.files,
+                  transferred: action.files.map(() => 0),
+                  uris: action.files.map(() => undefined),
+                },
+              }
+            : c,
+        ),
+      };
+    case 'progress':
+      return withTransfer(state, action.id, (transfer) => {
+        const transferred = [...transfer.transferred];
+        // Never move backwards: progress events can arrive late or out of order.
+        transferred[action.index] = Math.max(transferred[action.index] ?? 0, action.bytes);
+        return { ...transfer, transferred };
+      });
+    case 'fileDone':
+      return withTransfer(state, action.id, (transfer) => {
+        const transferred = [...transfer.transferred];
+        transferred[action.index] = transfer.files[action.index]?.size ?? transferred[action.index];
+        const uris = [...(transfer.uris ?? transfer.files.map(() => undefined))];
+        uris[action.index] = action.uri;
+        return { ...transfer, transferred, uris };
+      });
+    case 'status':
+      return {
+        ...state,
+        connections: state.connections.map((c) =>
+          c.id === action.id ? { ...c, status: action.status } : c,
+        ),
+      };
+    case 'fail':
+      return {
+        ...state,
+        connections: state.connections.map((c) =>
+          c.id === action.id
+            ? { ...c, status: 'idle', transfer: undefined, error: action.error }
+            : c,
+        ),
+      };
+    case 'request':
+      return { ...state, request: action.request };
   }
 }
 
@@ -142,6 +221,15 @@ type Store = {
   acceptRequest: () => void;
   declineRequest: () => void;
   loadScenario: (scenario: Scenario) => void;
+  /** What the real transfer engine reports. The demo actions above do not use these. */
+  engine: {
+    begin: (id: string, direction: Transfer['direction'], files: FileMeta[]) => void;
+    progress: (id: string, index: number, bytes: number) => void;
+    fileDone: (id: string, index: number, uri?: string) => void;
+    setStatus: (id: string, status: Connection['status']) => void;
+    fail: (id: string, error: string) => void;
+    setRequest: (request?: IncomingRequest) => void;
+  };
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -197,7 +285,11 @@ export function DemoStoreProvider({ children }: PropsWithChildren) {
       addConnection: (person) => dispatch({ type: 'add', person }),
       removeConnection: (id) => dispatch({ type: 'remove', id }),
       clearTransfer: (id) =>
-        dispatch({ type: 'patch', id, patch: { status: 'idle', transfer: undefined } }),
+        dispatch({
+          type: 'patch',
+          id,
+          patch: { status: 'idle', transfer: undefined, error: undefined },
+        }),
       sendFiles: (id) => {
         dispatch({ type: 'patch', id, patch: { status: 'sending-request' } });
         later(900, () => {
@@ -214,6 +306,14 @@ export function DemoStoreProvider({ children }: PropsWithChildren) {
       },
       declineRequest: () => dispatch({ type: 'clearRequest' }),
       loadScenario: (scenario) => dispatch({ type: 'set', state: scenarioState(scenario) }),
+      engine: {
+        begin: (id, direction, files) => dispatch({ type: 'begin', id, direction, files }),
+        progress: (id, index, bytes) => dispatch({ type: 'progress', id, index, bytes }),
+        fileDone: (id, index, uri) => dispatch({ type: 'fileDone', id, index, uri }),
+        setStatus: (id, status) => dispatch({ type: 'status', id, status }),
+        fail: (id, error) => dispatch({ type: 'fail', id, error }),
+        setRequest: (request) => dispatch({ type: 'request', request }),
+      },
     }),
     [later, runTransfer],
   );

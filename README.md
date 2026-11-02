@@ -19,7 +19,7 @@ File Share RTC  aims to provide a hassle-free and secure way to share files betw
 
 ## Mobile app (work in progress)
 
-An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). The screens are ported from the web app. **Pairing two devices uses Supabase** once the app is configured (below); without that it runs as a **UI preview on sample data**. **Transferring files is still simulated**: it is not wired to WebRTC yet. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
+An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). The screens are ported from the web app. **Pairing two devices uses Supabase** once the app is configured (below); without that it runs as a **UI preview on sample data**. **Transferring files** goes over a direct WebRTC link signalled through Supabase when the app is configured (checked between two simulators; phones on networks that block device-to-device traffic will need a TURN relay, which is not set up yet), and is simulated in the sample-data preview. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
 
 ### Connecting the mobile app to Supabase
 

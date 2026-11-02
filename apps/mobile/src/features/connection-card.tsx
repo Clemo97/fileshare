@@ -8,11 +8,12 @@ import { Button } from '@/ui/button';
 import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '@/ui/dialog';
 import { formatBytes } from '@/ui/format';
 import { ProgressBar } from '@/ui/progress';
-import { Text, green500 } from '@/ui/text';
+import { RED_500, Text, green500 } from '@/ui/text';
 
 import { useConnectionActions } from './connections-sync';
 import { useDemoStore, type Connection } from './demo-store';
 import { personName, type FileMeta } from './sample-data';
+import { useTransfer } from './transfer-provider';
 
 /** One connected device. Themed with the remote user's colour, like the web app. */
 export function ConnectionCard({ connection }: { connection: Connection }) {
@@ -27,10 +28,10 @@ const isDone = (file: FileMeta, transferred: number) => transferred >= file.size
 
 function Card({ connection }: { connection: Connection }) {
   const t = useTheme();
-  const { sendFiles } = useDemoStore();
   const { remove } = useConnectionActions();
+  const transfers = useTransfer();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const { person, status, transfer } = connection;
+  const { person, status, transfer, error } = connection;
 
   const transferDone = !!transfer && transfer.files.every((f, i) => isDone(f, transfer.transferred[i]));
   const canSend = status === 'idle' || transferDone;
@@ -57,6 +58,11 @@ function Card({ connection }: { connection: Connection }) {
           {status === 'connected' && !transferDone ? (
             <Text style={{ color: green500(0.5) }}>Connected</Text>
           ) : null}
+          {error && status === 'idle' ? (
+            <Text size={12} style={{ color: RED_500 }}>
+              {error}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -71,7 +77,11 @@ function Card({ connection }: { connection: Connection }) {
           onPress={() => setConfirmingDelete(true)}
         />
         {canSend ? (
-          <Button variant="ghost" icon="send" onPress={() => sendFiles(connection.id)}>
+          <Button
+            variant="ghost"
+            icon="send"
+            disabled={!transfers.available}
+            onPress={() => transfers.send(connection.id)}>
             Send Files
           </Button>
         ) : null}
@@ -104,6 +114,7 @@ function Card({ connection }: { connection: Connection }) {
 function FilesList({ connection, done }: { connection: Connection; done: boolean }) {
   const t = useTheme();
   const { clearTransfer } = useDemoStore();
+  const transfers = useTransfer();
   const transfer = connection.transfer!;
   // Only the file currently moving shows a progress bar.
   const activeIndex = transfer.files.findIndex((f, i) => !isDone(f, transfer.transferred[i]));
@@ -111,14 +122,22 @@ function FilesList({ connection, done }: { connection: Connection; done: boolean
   return (
     <View
       style={{ gap: 8, padding: 8, borderRadius: radius.md, borderWidth: 1, borderColor: t.border }}>
-      {transfer.files.map((file, i) => (
-        <FileRow
-          key={file.name}
-          file={file}
-          transferred={transfer.transferred[i]}
-          active={connection.status === 'connected' && i === activeIndex}
-        />
-      ))}
+      {transfer.files.map((file, i) => {
+        const uri = transfer.uris?.[i];
+        return (
+          <FileRow
+            key={`${i}-${file.name}`}
+            file={file}
+            transferred={transfer.transferred[i]}
+            active={connection.status === 'connected' && i === activeIndex}
+            onSave={
+              transfer.direction === 'receive' && uri
+                ? () => transfers.save(uri, file.mimeType)
+                : undefined
+            }
+          />
+        );
+      })}
       {done ? (
         <View style={{ alignItems: 'flex-end' }}>
           <Button variant="link" icon="trash-2" onPress={() => clearTransfer(connection.id)}>
@@ -134,10 +153,13 @@ function FileRow({
   file,
   transferred,
   active,
+  onSave,
 }: {
   file: FileMeta;
   transferred: number;
   active: boolean;
+  /** Present for a received file that is saved on this device: opens the share sheet. */
+  onSave?: () => void;
 }) {
   const t = useTheme();
   const done = isDone(file, transferred);
@@ -160,6 +182,11 @@ function FileRow({
         <Text numberOfLines={1} style={{ flex: 1 }}>
           {file.name}
         </Text>
+        {onSave && done ? (
+          <Button variant="ghost" size="sm" icon="download" onPress={onSave}>
+            Save
+          </Button>
+        ) : null}
       </View>
 
       {active && !done ? (
