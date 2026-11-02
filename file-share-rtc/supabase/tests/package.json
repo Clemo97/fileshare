@@ -1,0 +1,12 @@
+{
+  "name": "supabase-sql-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tests for the SQL in ../migrations, run in PGlite. See pairing.test.mjs.",
+  "scripts": {
+    "test": "node pairing.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14"
+  }
+}
