@@ -9,7 +9,6 @@ import { runBackpressure, runInterop, runLoopback, type PeerJob } from './peer';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const g = globalThis as any;
 
 function describeEnvironment() {

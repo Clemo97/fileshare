@@ -255,6 +255,8 @@ Feature parity, screen by screen:
 Build order: auth → connections list → pairing → send → receive → save/share → error states.
 **Done when:** iPhone-sim ↔ Android-emu ↔ web can pair and transfer files both ways.
 
+> **Status (2026-11-02): UI preview only.** The screens above are built in `apps/mobile/src`: Welcome, Connections (empty, list, transferring), the connect-device sheet (idle, code, connecting, success, error) and the transfer-request dialog, themed with colours generated from the web app (`scripts/generate-theme.mjs`) and verified on the iPhone 17 simulator in light and dark mode (screenshots in the root README). They run on **sample data and simulated timers** (`src/features/sample-data.ts`, `demo-store.tsx`): there is no Supabase and no WebRTC behind them yet. Still to do in Phase 4: auth, real pairing, sending and receiving, saving files, and replacing the demo store with the shared core from Phase 3. In development builds, links like `mobile://home?demo=transferring` jump straight to a state. Not yet checked: the Android layout.
+
 ### Phase 5: Mobile-specific hardening (~1–2 weeks, pick what matters)
 Backpressure/ack window on receive; keep-awake + clear progress UI; reconnect Realtime on foreground; QR-code pairing (`expo-camera`); "Share to Data Loom" from the OS share sheet; push notifications for incoming requests; Android foreground service for long transfers; accessibility pass; light/dark themes per user colour.
 

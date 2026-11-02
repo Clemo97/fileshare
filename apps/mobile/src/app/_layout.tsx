@@ -1,23 +1,31 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { DemoStoreProvider } from '@/features/demo-store';
+import { ME } from '@/features/sample-data';
 import { startSpikeRunner } from '@/spike/runner';
-
-SplashScreen.preventAutoHideAsync();
+import { ThemeProvider, useTheme } from '@/theme/theme';
 
 // Phase 1 spike only (see spike/README.md): polls the local test server for jobs.
 // Off unless started with EXPO_PUBLIC_SPIKE=1. Remove once Phase 3 has replaced it.
 if (__DEV__ && process.env.EXPO_PUBLIC_SPIKE === '1') startSpikeRunner();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function RootStack() {
+  const theme = useTheme();
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.background } }}>
+      <Stack.Screen name="connect" options={{ presentation: 'modal' }} />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  // The web app themes the page with the signed-in user's colour; ME is sample data for now.
+  return (
+    <ThemeProvider name={ME.colorId}>
+      <DemoStoreProvider>
+        <RootStack />
+      </DemoStoreProvider>
     </ThemeProvider>
   );
 }

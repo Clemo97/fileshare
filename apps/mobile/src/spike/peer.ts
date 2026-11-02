@@ -8,7 +8,6 @@ import { createSpikeFile, openFileSink } from './fileio';
 import { postJson, getJson } from './http';
 import { receiveFile, sendFile, type Channel } from './transfer';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PC = any;
 
 const now = () => performance.now();
@@ -71,10 +70,8 @@ function trackStates(pc: PC, t0: number) {
 async function selectedPair(pc: PC) {
   try {
     const stats = await pc.getStats();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const byId: Record<string, any> = {};
     let pairId: string | undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     stats.forEach((report: any, key: string) => {
       byId[report.id ?? key] = report;
       if (report.type === 'transport' && report.selectedCandidatePairId) {
@@ -84,7 +81,6 @@ async function selectedPair(pc: PC) {
     const pair =
       (pairId && byId[pairId]) ||
       Object.values(byId).find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (r: any) => r.type === 'candidate-pair' && r.state === 'succeeded' && (r.nominated || r.selected),
       );
     if (!pair) return { note: 'no selected pair' };
@@ -269,7 +265,6 @@ export async function runInterop(job: PeerJob) {
     await signal({ kind: 'offer', payload: JSON.parse(JSON.stringify(pc.localDescription)) });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: Record<string, any> = { room, role, dir };
   try {
     result.connectMs = Math.round(await connected);

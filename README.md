@@ -19,13 +19,23 @@ File Share RTC  aims to provide a hassle-free and secure way to share files betw
 
 ## Mobile app (work in progress)
 
-An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). So far it is the Expo starter UI plus the WebRTC groundwork; the File Share RTC screens (connect a device, send and receive files) are next. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
+An iOS and Android app is being built with [Expo](https://expo.dev) and React Native in [`apps/mobile`](apps/mobile). It is currently a **UI preview running on sample data**: the screens are ported from the web app, but connecting devices and transferring files are simulated and not yet wired to the real Supabase and WebRTC code. The migration plan, and the results of the first technical spikes, are in [`file-share-rtc/REACT_NATIVE_PLAN.md`](file-share-rtc/REACT_NATIVE_PLAN.md).
 
 Screenshots from the iPhone 17 simulator (iOS 27.2):
 
-| Home | Home (dark) | Explore | Explore (expanded) | Explore (dark) |
-| :-: | :-: | :-: | :-: | :-: |
-| <img src="apps/mobile/screenshots/ios-home-light.png" alt="Home screen in light mode" width="140"> | <img src="apps/mobile/screenshots/ios-home-dark.png" alt="Home screen in dark mode" width="140"> | <img src="apps/mobile/screenshots/ios-explore-light.png" alt="Explore screen in light mode" width="140"> | <img src="apps/mobile/screenshots/ios-explore-expanded-light.png" alt="Explore screen with a section expanded" width="140"> | <img src="apps/mobile/screenshots/ios-explore-dark.png" alt="Explore screen in dark mode" width="140"> |
+| Welcome | No connections yet | Connect a device | Connection code |
+| :-: | :-: | :-: | :-: |
+| <img src="apps/mobile/screenshots/welcome-light.png" alt="Welcome screen" width="160"> | <img src="apps/mobile/screenshots/connections-empty-light.png" alt="Empty connections screen" width="160"> | <img src="apps/mobile/screenshots/connect-device-light.png" alt="Set up a new connection sheet" width="160"> | <img src="apps/mobile/screenshots/connection-code-light.png" alt="Connection code with expiry countdown" width="160"> |
+
+| Connections | Transferring files | Transfer request |
+| :-: | :-: | :-: |
+| <img src="apps/mobile/screenshots/connections-light.png" alt="Two connected devices" width="160"> | <img src="apps/mobile/screenshots/transferring-light.png" alt="Two transfers in progress" width="160"> | <img src="apps/mobile/screenshots/transfer-request-light.png" alt="Incoming file transfer request dialog" width="160"> |
+
+Dark mode:
+
+| Welcome | Transferring files | Connection code |
+| :-: | :-: | :-: |
+| <img src="apps/mobile/screenshots/welcome-dark.png" alt="Welcome screen in dark mode" width="160"> | <img src="apps/mobile/screenshots/transferring-dark.png" alt="Transfers in progress in dark mode" width="160"> | <img src="apps/mobile/screenshots/connection-code-dark.png" alt="Connection code in dark mode" width="160"> |
 
 ## Simple Steps to Start Sharing
 

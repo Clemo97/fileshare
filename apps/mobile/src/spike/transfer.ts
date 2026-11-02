@@ -6,11 +6,9 @@
 //   - receiver closes the channel when it has all the bytes
 // Every chunk starts with its uint32 index; a few sampled bytes follow a fixed pattern.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Channel = any;
 
 const now = () => performance.now();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const debug = (line: string) => (globalThis as any).__spikeLog?.(line);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
