@@ -34,6 +34,14 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+## Xcode
+
+Xcode's tools are available to external agents through its MCP server (`xcrun mcpbridge`, registered as the `xcode` MCP server). They only work while the project is open in Xcode, so ask the user to open `ios/mobile.xcworkspace` first. Xcode > Settings > Intelligence must have "Allow external agents to use Xcode tools" turned on.
+
+- Open the workspace, never `mobile.xcodeproj` — the Pods only resolve through `mobile.xcworkspace`. The scheme and target are both `mobile`, the bundle ID is `com.anonymous.mobile`, and the minimum iOS version is 16.4.
+- Use the Xcode tools to build (`BuildProject`, `GetBuildLog`), run (`RunProject`, `GetConsoleOutput`), debug (`InvokeDebuggerCommand`, `GetCrashIssueLogs`) and look things up (`DocumentationSearch`). A debug build loads JS from Metro, so keep `npx expo start` running.
+- Do not use the Xcode tools that change the project or its files (`XcodeWrite`, `XcodeUpdate`, `XcodeRM`, `XcodeMV`, `XcodeMakeDir`, `AddEntitlement`, `AddInfoPlist`, `UpdateTargetBuildSetting`, `UpdateFileCompilerFlags`, `XcodeNewTarget`, `XcodeNewProject`). `ios/` is generated and gitignored, so those edits are lost on the next `npx expo prebuild`. Configure native behavior in `app.json` and config plugins, and edit app code under `src/` with the normal file tools.
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
