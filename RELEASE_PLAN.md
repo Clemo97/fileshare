@@ -22,7 +22,7 @@ Facts marked **[verified]** were read from Apple's or Expo's own pages on 2026-1
 | `eas.json`, EAS environment guard, GitHub workflows | **Written, never run** |
 | App icon | **Drawn 2026-11-03**: an acorn with a network cap on teal. SVG sources in `apps/mobile/assets/icon-source/`; `icon.png` is 1024 px with no alpha channel; `ios.icon` points at it. Not yet seen on a device or in a build |
 | Store text, review notes, age-rating and App Privacy answers | **Drafted 2026-11-03** in `store/` (limits checked against Apple's pages); the owner reviews and enters them. Still needed from the owner: a phone number for the App Review contact, the encryption decision, the EU trader check |
-| Screenshots | **iPhone: 6 captured** (1206 x 2622, no alpha, `store/screenshots/iphone/`, sample data from the app's demo scenarios). **iPad 13-inch: not captured yet** (needs one tap on the simulator, `HANDOFF.md` G27) |
+| Screenshots | **iPhone: 6 captured** (1206 x 2622, no alpha, `store/screenshots/iphone/`, sample data from the app's demo scenarios). **iPad 13-inch: 6 captured** (2064 x 2752, no alpha, `store/screenshots/ipad/`; the simulator's resize handle painted out, `HANDOFF.md` G27) |
 | App Review screen recording | **Not done**. Best recorded on the owner's real devices (iPad and S23) once the TestFlight build is installed |
 | TURN relay | Not needed in the owner's phone test, still wanted for networks that block direct links (`HANDOFF.md` §3.6) |
 
