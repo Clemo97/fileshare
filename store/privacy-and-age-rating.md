@@ -34,6 +34,9 @@ Everything else is **not collected**: contact info, health and fitness, financia
 **Tracking: No.**
 
 Other points:
+- The random display name (a colour and an animal) is treated as a screen name, so it falls under **User ID** ("screen name, handle, account ID" in Apple's list); no row is needed for Name.
+- Judgement call, not ticked: the server also stores which accounts are paired with each other. Apple's **Contacts** type reads "a list of contacts in the user's phone, address book, or social graph". The app never imports contacts, and a paired device is usually the owner's own, so the label would mislead; but if someone pairs with another person's device the pairing list is closer to a social graph. If the owner prefers to be cautious, tick Contacts (linked, not tracking, App Functionality).
+- The optional-disclosure exceptions in Apple's list do not apply: this data is part of the app's main function.
 - Cloudflare's and Google's STUN servers see a device's public address only while it connects, and the app keeps nothing from them. Under Apple's rule for data used only to service a request they need no declaration; the privacy policy names them anyway.
 - Supabase hosts the records above (Frankfurt). It is a service provider, not an SDK that collects data for itself, so it adds no row.
 - Privacy Choices URL is optional; leave it empty, or point it at the "Deleting your data" part of the privacy policy.

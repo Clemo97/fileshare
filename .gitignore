@@ -1,2 +1,5 @@
 # App Review screen recording (large; keep out of git)
 store/review-video.*
+
+# macOS Finder metadata
+.DS_Store
