@@ -40,7 +40,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 Xcode's tools are available to external agents through its MCP server (`xcrun mcpbridge`, registered as the `xcode` MCP server). They only work while the project is open in Xcode, so ask the user to open `ios/mobile.xcworkspace` first. Xcode > Settings > Intelligence must have "Allow external agents to use Xcode tools" turned on.
 
-- Open the workspace, never `mobile.xcodeproj` — the Pods only resolve through `mobile.xcworkspace`. The scheme and target are both `mobile`, the bundle ID is `com.anonymous.mobile`, and the minimum iOS version is 16.4.
+- Open the workspace, never `mobile.xcodeproj` — the Pods only resolve through `mobile.xcworkspace`. The scheme and target are both `mobile`, the bundle ID in `app.json` is `io.github.clemo97.acornet` (the existing `ios/` folder still has `com.anonymous.mobile` until it is regenerated), and the minimum iOS version is 16.4.
 - Use the Xcode tools to build (`BuildProject`, `GetBuildLog`), run (`RunProject`, `GetConsoleOutput`), debug (`InvokeDebuggerCommand`, `GetCrashIssueLogs`) and look things up (`DocumentationSearch`). A debug build loads JS from Metro, so keep `npx expo start` running.
 - Do not use the Xcode tools that change the project or its files (`XcodeWrite`, `XcodeUpdate`, `XcodeRM`, `XcodeMV`, `XcodeMakeDir`, `AddEntitlement`, `AddInfoPlist`, `UpdateTargetBuildSetting`, `UpdateFileCompilerFlags`, `XcodeNewTarget`, `XcodeNewProject`). `ios/` is generated and gitignored, so those edits are lost on the next `npx expo prebuild`. Configure native behavior in `app.json` and config plugins, and edit app code under `src/` with the normal file tools.
 

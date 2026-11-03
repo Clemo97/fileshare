@@ -425,7 +425,7 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 4. **No TURN relay.** The iPad and S23 connected without one on the owner's network, but networks that block direct links (cellular, guest Wi-Fi, some offices) will fail with the "relay server" message until a relay exists (§3.6). Plan: Cloudflare STUN is free; Cloudflare TURN has a free tier, pricing undated in the plan.
 5. **Throughput** is bounded by the JS thread (base64 per chunk): about 10 MB/s on the iOS simulator, about 2.5 MB/s on the Android emulator via TURN. Real phones: the owner's test worked but speed was not measured.
 6. **Backgrounding** suspends transfers and Realtime on iOS; v1 design is "keep the app open".
-7. **Bundle ID is a placeholder** (`com.anonymous.mobile`); it cannot be changed once an app exists in a store. Pick a real one before the first upload.
+7. **Bundle ID is set to `io.github.clemo97.acornet` in `app.json` (2026-11-03) but not yet built locally.** The generated `ios/` and `android/` and the apps on the iPad and S23 still use the old placeholder `com.anonymous.mobile` until the native folders are regenerated and the apps reinstalled (the new ID is a separate app, so those devices must pair again). It cannot be changed once an app exists in a store.
 8. **Camera, microphone and Bluetooth permissions** are added to the manifests by the WebRTC config plugin although a data-only app does not need them (plan §6.1 "Smaller things").
 9. **Android R8 is off** in the release APK (G3).
 10. **Android rotation** will unlock when `android/` is regenerated; landscape layouts unchecked.
@@ -465,7 +465,7 @@ Open decisions for the owner are listed in plan §11 (package manager, TURN prov
 ## 14. Quick reference
 
 - Repo: `~/Documents/personal-projects/fileshare`, branch `react-native-migration`.
-- App identifiers: iOS bundle ID and Android package `com.anonymous.mobile` (placeholder); Expo scheme `mobile`; Xcode workspace `apps/mobile/ios/mobile.xcworkspace`, scheme and target `mobile`.
+- App identifiers: iOS bundle ID and Android package `io.github.clemo97.acornet` in `app.json` (the not-yet-regenerated `ios/` and `android/` still say `com.anonymous.mobile`); Expo scheme `mobile`; Xcode workspace `apps/mobile/ios/mobile.xcworkspace`, scheme and target `mobile`.
 - Env variables the app reads: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (and the dev-only `EXPO_PUBLIC_SPIKE=1` for the throwaway harness).
 - Supabase: one project, `data-loom`, free plan, Frankfurt, created 2026-11-02 (details in §9; identifiers omitted because the repo is public).
 - Find devices: `xcrun devicectl list devices`, `xcrun simctl list devices`, `~/Library/Android/sdk/platform-tools/adb devices -l`.

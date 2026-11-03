@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.anonymous.mobile",
+      "bundleIdentifier": "io.github.clemo97.acornet",
       "supportsTablet": true,
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Lets this app find and connect directly to your other devices on the same Wi-Fi network to send files.",
@@ -30,7 +30,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "io.github.clemo97.acornet"
     },
     "web": {
       "output": "server",
