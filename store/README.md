@@ -18,6 +18,6 @@ The screen recording for App Review is best made on real devices (see `review-no
 
 1. A phone number for the App Review contact (international format).
 2. ~~The app name~~: Apple accepted "Acornet" when the app record was created (owner's report, 2026-11-03).
-3. Answering Apple's export-compliance questions for the build (the key is set to `true`; `privacy-and-age-rating.md`, last section), including France.
+3. Keeping France out of the app's availability: the encryption key is `false` on that basis (`privacy-and-age-rating.md`, last section).
 4. A read through every text: the description makes claims (encrypted, not stored on a server, no sign-up) that match the code today and must stay true.
 5. The EU trader answer, after reading Apple's definition.
