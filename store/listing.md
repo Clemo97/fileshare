@@ -69,7 +69,7 @@ transfer,send,share,files,peer to peer,p2p,wireless,direct,private,wifi,no cloud
 
 **Version release:** Manual is the safer first choice (you press release after approval); Automatic is fine too.
 
-**Price:** Free. **Availability:** all countries and regions, except possibly France: see "Encryption" in `README.md`.
+**Price:** Free. **Availability:** all countries and regions, except possibly France: see "Export compliance" in `privacy-and-age-rating.md`.
 
 ## Screenshots
 

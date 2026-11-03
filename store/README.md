@@ -6,7 +6,7 @@ Drafts for the first App Store release, 2026-11-03. Nothing here is submitted; t
 |---|---|
 | `listing.md` | Name, subtitle, promotional text, description, keywords, URLs, copyright, categories |
 | `review-notes.md` | App Review contact fields and the notes to paste |
-| `privacy-and-age-rating.md` | Age-rating and App Privacy answers with the reasoning, EU trader status, the open export-compliance question |
+| `privacy-and-age-rating.md` | Age-rating and App Privacy answers with the reasoning, EU trader status, the export-compliance decision |
 | `screenshots/iphone/` | Six iPhone screenshots, 1206 x 2622 px, no alpha. Upload order: 01 to 06 |
 | `screenshots/ipad/` | Six iPad 13-inch screenshots, 2064 x 2752 px, no alpha. Upload order: 01 to 06. The simulator's window-resize handle was painted out of the bottom-right corner (`../HANDOFF.md` G27) |
 
@@ -18,6 +18,6 @@ The screen recording for App Review is best made on real devices (see `review-no
 
 1. A phone number for the App Review contact (international format).
 2. The app name: "Acornet" is only confirmed free when you create the app record.
-3. The encryption decision (`privacy-and-age-rating.md`, last section).
+3. Answering Apple's export-compliance questions for the build (the key is set to `true`; `privacy-and-age-rating.md`, last section), including France.
 4. A read through every text: the description makes claims (encrypted, not stored on a server, no sign-up) that match the code today and must stay true.
 5. The EU trader answer, after reading Apple's definition.
