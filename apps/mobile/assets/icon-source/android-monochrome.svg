@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="432" height="432">
+  <!-- Android themed (monochrome) icon: a one-colour acorn, the network and the gap between cap
+       and nut cut out. Only the alpha channel matters. Source for android-icon-monochrome.png. -->
+  <g transform="translate(216 216) scale(0.3375) translate(-512 -515)">
+    <defs>
+      <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+        <rect width="1024" height="1024" fill="#fff"/>
+        <g stroke="#000" stroke-width="13" stroke-linecap="round">
+          <line x1="512" y1="336" x2="388" y2="420"/>
+          <line x1="512" y1="336" x2="636" y2="420"/>
+          <line x1="512" y1="336" x2="512" y2="440"/>
+          <line x1="388" y1="420" x2="512" y2="440"/>
+          <line x1="636" y1="420" x2="512" y2="440"/>
+          <line x1="236" y1="571" x2="788" y2="571" stroke-width="16"/>
+        </g>
+        <g fill="#000">
+          <circle cx="512" cy="336" r="26"/>
+          <circle cx="388" cy="420" r="26"/>
+          <circle cx="636" cy="420" r="26"/>
+          <circle cx="512" cy="440" r="31"/>
+        </g>
+      </mask>
+    </defs>
+    <g mask="url(#cut)" fill="#fff">
+      <path d="M512 270 C512 222 522 188 552 152" fill="none" stroke="#fff" stroke-width="44" stroke-linecap="round"/>
+      <path d="M298 505 C298 690 400 810 512 880 C624 810 726 690 726 505 Z" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+      <path d="M266 520 C266 340 380 258 512 258 C644 258 758 340 758 520 Z"/>
+      <rect x="248" y="476" width="528" height="86" rx="43"/>
+    </g>
+  </g>
+</svg>
