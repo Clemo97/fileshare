@@ -23,7 +23,7 @@ export default function Welcome() {
         backgroundColor: t.background,
       }}>
       <Text size={56} weight="700" style={{ textAlign: 'center', letterSpacing: -1.5 }}>
-        Data Loom
+        Acornet
       </Text>
 
       <Text
@@ -31,7 +31,7 @@ export default function Welcome() {
         size={18}
         style={{ textAlign: 'center', lineHeight: 26, marginTop: 16, alignSelf: 'center', maxWidth: 420 }}>
         Seamless file sharing directly between devices. Built on the power of WebRTC technology,
-        Data Loom ensures your data transfers are secure, fast, and direct—no middlemen involved.
+        Acornet ensures your data transfers are secure, fast, and direct—no middlemen involved.
       </Text>
 
       <View style={{ alignItems: 'center', marginTop: 40 }}>

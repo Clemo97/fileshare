@@ -1,4 +1,4 @@
-# Handoff: Data Loom / fileshare
+# Handoff: Acornet (formerly Data Loom) / fileshare
 
 Written on 2026-11-02 so that another engineer, or another AI system, can take this project over without the conversation that produced it. Everything below was checked on the owner's machine unless it is marked **[unverified]**. Where something is inferred rather than observed, it says so.
 
@@ -337,6 +337,8 @@ A targeted repair (write `Release` into the marker, then run React Native's own 
 **G24. Opening a deep link on a simulator asks "Open in mobile?" once per device.** Tap Open. The dev shortcut `mobile://home?sendTest=...` needs a connection to exist and a changed `n` value to send again.
 
 **G25. The S23 "is plugged in" but `adb devices` is empty.** Check what the Mac sees: `system_profiler SPUSBHostDataType | grep -i -A3 samsung` (the iPad appears there as "iPad"). If the phone is absent there too, it is a cable that carries only power, a hub, or the phone's USB mode (pull down the notification shade, tap the USB notification, choose File transfer); USB debugging settings and `adb kill-server` do not help. When it works the phone shows as `SAMSUNG_Android` and `adb devices` lists it as `device` after the Allow prompt.
+
+**G26. Renaming the app changes the native project name later.** `name` in `app.json` (now "Acornet") is the name under the icon and also names the Xcode project, workspace, scheme and target when `ios/` is generated from scratch. The existing generated folders still say `mobile` (home-screen name "mobile", `ios/mobile.xcworkspace`, scheme `mobile`) until `expo prebuild --clean` or a cloud build regenerates them; then `apps/mobile/AGENTS.md` and §14 must say `Acornet.xcworkspace` and scheme `Acornet`, and a clean prebuild also triggers the Pods flavor trap (G6). The URL scheme stays `mobile` on purpose (the dev deep links in this file use it). The Supabase project is still named `data-loom` and the original web app is still "Data Loom".
 
 **G20. A naive search for `sb_secret_` in a built bundle gives a false positive.** `supabase-js` has `key.startsWith("sb_secret_")` in its own code, so every bundle that includes it contains that literal. Judge a hit by the library source (`grep` the package), by the shape of what follows, and by what your own `.env.local` holds (here: a publishable key only). Never go looking for the real secret key to compare: it must not be read out.
 

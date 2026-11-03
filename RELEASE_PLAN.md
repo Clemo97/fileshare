@@ -11,7 +11,8 @@ Facts marked **[verified]** were read from Apple's or Expo's own pages on 2026-1
 | Real pairing and file transfer | Works on the simulators and, by the owner's report, on the iPad and S23 (`HANDOFF.md` §2.1) |
 | Paid Apple Developer Program membership | **Not done. Only the owner can do it** |
 | Expo account, EAS project, App Store Connect app record | **Not done. Owner** |
-| App name and bundle ID | **Placeholders**: name `mobile`, bundle ID `com.anonymous.mobile`. **Owner must choose** (see 2) |
+| App name | Working name **Acornet** (chosen 2026-11-02; `name` and `slug` in `apps/mobile/app.json`, and the welcome screen). **Not confirmed free on the App Store**: App Store Connect says so when you reserve it. "Scurry" was rejected because an app of that name exists |
+| Bundle ID | **Still the placeholder `com.anonymous.mobile`. Owner must choose** (see 2) |
 | In-app account deletion | **Built, migration applied to the hosted project, tested live by script** (16 checks) **and through the UI on a simulator** (it became a new identity with no connections, and the paired simulator lost its card) |
 | Privacy policy link inside the app | **Built**, shows only when `EXPO_PUBLIC_PRIVACY_POLICY_URL` is set. **The policy itself does not exist yet** |
 | Camera, microphone and local-network purpose strings | **Written** (see 4.3) |
@@ -22,7 +23,7 @@ Facts marked **[verified]** were read from Apple's or Expo's own pages on 2026-1
 ## 2. Decisions only the owner can make
 
 1. **Individual or Organization account.** Individual needs the owner's legal name and a verified address. Organization needs a legal entity that can contract with Apple, a D-U-N-S number, a work email on the organization's domain and a public website on that domain **[verified]**. Fee: 99 USD per year (local currency shown at enrollment) **[verified]**. Approval time is not stated by Apple **[verified]**.
-2. **App name and bundle ID.** The bundle ID cannot change once the app exists in App Store Connect, and the name must be unique on the store. Pick both before the first upload. Changing the bundle ID means editing `ios.bundleIdentifier` (and `android.package`) in `apps/mobile/app.json` and regenerating `ios/` and `android/`. Installs of the old ID are a different app: they lose their account and connections.
+2. **App name and bundle ID.** The bundle ID cannot change once the app exists in App Store Connect, and the name must be unique on the store. The working name is Acornet; confirm it (or pick another) when you reserve it in App Store Connect, and pick the bundle ID before the first upload (reverse-domain style, for example `com.<something you own or a handle>.acornet`). The name is set in `app.json` (`name`, `slug`) and in `src/app/index.tsx`; the Xcode project and scheme are renamed to match the next time `ios/` is regenerated from scratch (HANDOFF.md G26). Changing the bundle ID means editing `ios.bundleIdentifier` (and `android.package`) in `apps/mobile/app.json` and regenerating `ios/` and `android/`. Installs of the old ID are a different app: they lose their account and connections.
 3. **Where the privacy policy lives** and **a contact email** for it and for the store's support URL. A public page in this repository or GitHub Pages is enough.
 4. **Export compliance answer.** The app uses HTTPS and WebRTC's encryption (DTLS), which is "standard" encryption. App Store Connect asks about it for every build unless `ITSAppUsesNonExemptEncryption` is set in the app's Info.plist. Read Apple's export-compliance questions and decide, then set the key in `app.json` under `ios.infoPlist` **[unverified: the exact answer]**.
 5. **EU trader status.** Apple removes apps without verified trader status from the EU store **[verified]**. Declare trader or non-trader in App Store Connect; a trader's contact details are shown publicly **[unverified]**.
@@ -49,6 +50,15 @@ npx eas-cli@latest build --platform ios --profile production
 # 5. First submit, by hand. It stores an App Store Connect API key in EAS for later automatic submits.
 npx eas-cli@latest submit --platform ios --latest
 ```
+
+### 3.1 Connecting your Apple Developer account
+
+Nothing here lets an AI (or any script) sign in with your Apple ID and password: you type those yourself, in your own terminal, where only Apple's and Expo's tools see them. Two ways to connect, and the plan uses both:
+
+1. **Interactive sign-in, once, for signing.** `eas build` (step 4 above) asks for your Apple ID, password and two-factor code in the terminal. EAS then creates and stores the distribution certificate and provisioning profile for you. Check first at developer.apple.com/account that the membership is the **paid** Apple Developer Program and active (a free Apple ID cannot publish).
+2. **An App Store Connect API key, for uploads and for automation.** In App Store Connect: Users and Access > Integrations > App Store Connect API > generate a key. Use the **App Manager** role (the usual choice for a release pipeline, which can upload builds and submit for review **[unverified: confirm the roles on Apple's page]**). Note the **Key ID** and the **Issuer ID**, and download the `.p8` private key: Apple lets you download it **once**. Keep it in a password manager, never in the repository or in chat. `eas submit` (step 5) asks for it and stores it in EAS; the same key works for `asc` (section 10).
+
+To let Claude run API-key steps for you, use the pattern already used for the Supabase token: put the key in 1Password, authorize the specific task, and have the commands read it inline with `op read`, never printing it. Treat the key as account access: it can change store listings and submit builds.
 
 Then add one GitHub repository secret, `EXPO_TOKEN` (an access token from expo.dev, Account settings). Never commit it.
 
@@ -138,6 +148,14 @@ Apple 99 USD per year. Expo's free plan for builds (monthly quota **[unverified]
 ## 9. To confirm before relying on it
 
 Export-compliance answer; purpose-string behaviour in App Store Connect; that a failing `eas-build-post-install` stops a build; `eas env` command name; the exact privacy-policy and review-notes rules; TestFlight internal testing needing no review; EU trader details being public; Supabase pause and limits; EAS free-plan quota.
+
+## 10. Optional: the `asc` command-line tool
+
+[`rorkai/App-Store-Connect-CLI`](https://github.com/rorkai/App-Store-Connect-CLI) (`asc`) drives the App Store Connect API from the terminal. Read on GitHub on 2026-11-02, **not installed or tried**: MIT license, about 8,200 stars, 30 contributors, commits daily, release 6.3.0 (2026-10-31) with checksums, installable with Homebrew. Made by Rork (rork.com).
+
+**Where it helps (after step 5):** `asc validate` checks a version before submission (missing fields, placeholder text, wording that App Review often rejects); `asc metadata apply` and `asc screenshots upload` keep the listing text and screenshots in files in the repo; `asc publish appstore --submit --confirm` submits for review and `asc status --until review-done` waits for the decision; `asc testflight feedback` and `crashes` read tester reports. **Where it does not replace EAS:** building and signing the React Native app stay with EAS Build; EAS Submit already uploads to TestFlight. It overlaps with EAS Metadata and fastlane's `deliver`.
+
+**Cautions:** it holds your API key, so it is account access: install with Homebrew (not `curl | bash`), pin the version, and keep the key in the password manager. It sends pseudonymous usage telemetry by default; turn it off with `asc telemetry disable` or `DO_NOT_TRACK=1`. `asc install-skills` copies 25 third-party agent skills into the global skills folder; skills steer the assistant, so read them before installing. Creating the app record with `asc web apps create` uses Apple's private web endpoints and your Apple ID login (Apple can change them without notice): creating the record by hand in App Store Connect takes a few minutes and is the safer first step.
 
 ## Sources (read 2026-11-02)
 
