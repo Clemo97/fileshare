@@ -14,10 +14,13 @@ Facts marked **[verified]** were read from Apple's or Expo's own pages on 2026-1
 | App name | Working name **Acornet** (chosen 2026-11-02; `name` and `slug` in `apps/mobile/app.json`, and the welcome screen). **Not confirmed free on the App Store**: App Store Connect says so when you reserve it. "Scurry" was rejected because an app of that name exists |
 | Bundle ID | **`io.github.clemo97.acornet`** (chosen 2026-11-03; `ios.bundleIdentifier` and `android.package` in `app.json`). The generated `ios/` and `android/` folders and the apps now on the iPad and S23 still carry the old placeholder `com.anonymous.mobile` until they are regenerated and reinstalled. EAS builds read `app.json`, so they already use the new one |
 | In-app account deletion | **Built, migration applied to the hosted project, tested live by script** (16 checks) **and through the UI on a simulator** (it became a new identity with no connections, and the paired simulator lost its card) |
-| Privacy policy link inside the app | **Built**, shows only when `EXPO_PUBLIC_PRIVACY_POLICY_URL` is set. **The policy itself does not exist yet** |
+| Privacy policy and support pages | **Published 2026-11-03** on GitHub Pages from `docs/` of the `react-native-migration` branch: policy `https://clemo97.github.io/fileshare/privacy.html`, support `https://clemo97.github.io/fileshare/support.html` (checked: both answer 200). **Pages is tied to that branch: when it is merged into `main`, change the Pages source to `main` and `/docs`, or the site disappears with the branch.** The policy's contact is the owner's email, published with their OK |
+| Privacy policy link inside the app | **Built**, shows only when `EXPO_PUBLIC_PRIVACY_POLICY_URL` is set. **Not yet set in EAS** (use the policy URL above) |
+| Apple account type, EU trader status | Owner's answers 2026-11-03: **Individual** paid account, **non-trader** (free hobby project). Apple's own wording decides whether non-trader is right; the owner confirms it in App Store Connect |
 | Camera, microphone and local-network purpose strings | **Written** (see 4.3) |
 | `eas.json`, EAS environment guard, GitHub workflows | **Written, never run** |
-| App icon, screenshots, store text, age rating, privacy answers, review notes | **Not done** |
+| App icon | **Drawn 2026-11-03**: an acorn with a network cap on teal. SVG sources in `apps/mobile/assets/icon-source/`; `icon.png` is 1024 px with no alpha channel; `ios.icon` points at it. Not yet seen on a device or in a build |
+| Screenshots, store text, age rating, privacy answers, review notes | **Not done** |
 | TURN relay | Not needed in the owner's phone test, still wanted for networks that block direct links (`HANDOFF.md` §3.6) |
 
 ## 2. Decisions only the owner can make
@@ -108,9 +111,9 @@ No analytics, advertising or tracking SDKs are in `package.json` **[checked 2026
 1. Owner: enroll; choose name, bundle ID, account type; create the Expo account (section 2, 3).
 2. Assistant: ~~put the chosen name and bundle ID into `app.json`~~ (done 2026-11-03); regenerate native folders, rebuild and re-test on both devices (not done; the devices will have to be re-paired because the new bundle ID installs as a separate app).
 3. ~~Apply the delete-account migration to the hosted project~~ (done 2026-11-02). Also tested through the app's UI on a simulator on 2026-11-02.
-4. Write and host the privacy policy; set `EXPO_PUBLIC_PRIVACY_POLICY_URL` locally and in EAS.
+4. ~~Write and host the privacy policy~~ (done 2026-11-03, section 1); set `EXPO_PUBLIC_PRIVACY_POLICY_URL` locally and in EAS (waits for `eas init`).
 5. Run the one-time setup (section 3). Install the first TestFlight build on the iPad and test pairing, transfer and deletion on it. TestFlight needs no App Review for internal testers **[unverified]**.
-6. In App Store Connect: create the app record (name, bundle ID, SKU, language), set price **Free**, category (Utilities or Productivity), the age-rating questionnaire (Apple's new rating system **[verified]**), App Privacy answers, EU trader status, support URL, privacy policy URL, description, keywords, an app icon (the current one is the Expo template's), screenshots at the sizes App Store Connect asks for.
+6. In App Store Connect: create the app record (name, bundle ID, SKU, language), set price **Free**, category (Utilities or Productivity), the age-rating questionnaire (Apple's new rating system **[verified]**), App Privacy answers, EU trader status, support URL, privacy policy URL, description, keywords, the app icon (done, see section 1), screenshots at the sizes App Store Connect asks for.
 7. App Review notes, written for a reviewer who may own one device. Suggested text: "Two devices are needed to pair. On device A tap Connect Device > Generate Connection Code. On device B tap Connect Device and enter the code. Then tap Send Files on either device, choose a file and accept on the other. No account or sign-in is needed: the app creates an anonymous account on first launch and it can be deleted from the home screen (Delete account). A screen recording of the whole flow is attached." Attach that recording. **Reviewers who cannot test a feature reject apps for incompleteness (Guideline 2.1) [unverified]**.
 8. Select the TestFlight build, **Submit for Review**, then release manually or automatically after approval.
 
