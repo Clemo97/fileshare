@@ -57,6 +57,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4fac8254-8d2a-4085-b013-9feda03a8f3b"
+      }
+    },
+    "owner": "clementlumumba"
   }
 }

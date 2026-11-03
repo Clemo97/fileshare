@@ -10,12 +10,13 @@ Facts marked **[verified]** were read from Apple's or Expo's own pages on 2026-1
 |---|---|
 | Real pairing and file transfer | Works on the simulators and, by the owner's report, on the iPad and S23 (`HANDOFF.md` §2.1) |
 | Paid Apple Developer Program membership | **Not done. Only the owner can do it** |
-| Expo account, EAS project, App Store Connect app record | **Not done. Owner** |
+| Expo account and EAS project | **Done 2026-11-03**: logged in as `clementlumumba`, project `@clementlumumba/acornet` (`eas init`; the project ID is in `app.json`) |
+| App Store Connect app record | **Not done. Owner** (after the first `eas build` registers the bundle ID) |
 | App name | Working name **Acornet** (chosen 2026-11-02; `name` and `slug` in `apps/mobile/app.json`, and the welcome screen). **Not confirmed free on the App Store**: App Store Connect says so when you reserve it. "Scurry" was rejected because an app of that name exists |
 | Bundle ID | **`io.github.clemo97.acornet`** (chosen 2026-11-03; `ios.bundleIdentifier` and `android.package` in `app.json`). The generated `ios/` and `android/` folders and the apps now on the iPad and S23 still carry the old placeholder `com.anonymous.mobile` until they are regenerated and reinstalled. EAS builds read `app.json`, so they already use the new one |
 | In-app account deletion | **Built, migration applied to the hosted project, tested live by script** (16 checks) **and through the UI on a simulator** (it became a new identity with no connections, and the paired simulator lost its card) |
 | Privacy policy and support pages | **Published 2026-11-03** on GitHub Pages from `docs/` of the `react-native-migration` branch: policy `https://clemo97.github.io/fileshare/privacy.html`, support `https://clemo97.github.io/fileshare/support.html` (checked: both answer 200). **Pages is tied to that branch: when it is merged into `main`, change the Pages source to `main` and `/docs`, or the site disappears with the branch.** The policy's contact is the owner's email, published with their OK |
-| Privacy policy link inside the app | **Built**, shows only when `EXPO_PUBLIC_PRIVACY_POLICY_URL` is set. **Not yet set in EAS** (use the policy URL above) |
+| Privacy policy link inside the app | **Built**, shows only when `EXPO_PUBLIC_PRIVACY_POLICY_URL` is set. **Set in EAS (production) on 2026-11-03**, together with the two Supabase variables; the release guard script accepted the values. It is not set in `.env.local`, so local builds still show no policy button |
 | Apple account type, EU trader status | Owner's answers 2026-11-03: **Individual** paid account, **non-trader** (free hobby project). Apple's own wording decides whether non-trader is right; the owner confirms it in App Store Connect |
 | Camera, microphone and local-network purpose strings | **Written** (see 4.3) |
 | `eas.json`, EAS environment guard, GitHub workflows | **Written, never run** |
@@ -42,10 +43,11 @@ npx eas-cli@latest init            # links the folder to an Expo project; commit
 
 # 3. Production environment variables for cloud builds (.env.local is gitignored and not uploaded).
 #    Without these the build stops on purpose (scripts/check-release-env.mjs).
-#    The command may be `eas env:create` or `eas env:set` depending on the CLI version: `eas env --help`.
-npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_SUPABASE_URL --value <project url>
-npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <publishable key>
-npx eas-cli@latest env:create --environment production --visibility plaintext --name EXPO_PUBLIC_PRIVACY_POLICY_URL --value <policy url>
+#    The command is `env:set` in EAS CLI 27.3.0 (checked with `eas env --help` on 2026-11-03).
+#    DONE 2026-11-03 for all three; `eas env:list production` shows them (it prints plaintext values).
+npx eas-cli@latest env:set --environment production --visibility plaintext --non-interactive --name EXPO_PUBLIC_SUPABASE_URL --value <project url>
+npx eas-cli@latest env:set --environment production --visibility plaintext --non-interactive --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <publishable key>
+npx eas-cli@latest env:set --environment production --visibility plaintext --non-interactive --name EXPO_PUBLIC_PRIVACY_POLICY_URL --value <policy url>
 
 # 4. First build, by hand. It signs in to Apple and creates the distribution certificate and profile.
 npx eas-cli@latest build --platform ios --profile production
@@ -111,7 +113,7 @@ No analytics, advertising or tracking SDKs are in `package.json` **[checked 2026
 1. Owner: enroll; choose name, bundle ID, account type; create the Expo account (section 2, 3).
 2. Assistant: ~~put the chosen name and bundle ID into `app.json`~~ (done 2026-11-03); regenerate native folders, rebuild and re-test on both devices (not done; the devices will have to be re-paired because the new bundle ID installs as a separate app).
 3. ~~Apply the delete-account migration to the hosted project~~ (done 2026-11-02). Also tested through the app's UI on a simulator on 2026-11-02.
-4. ~~Write and host the privacy policy~~ (done 2026-11-03, section 1); set `EXPO_PUBLIC_PRIVACY_POLICY_URL` locally and in EAS (waits for `eas init`).
+4. ~~Write and host the privacy policy~~ (done 2026-11-03, section 1); ~~set `EXPO_PUBLIC_PRIVACY_POLICY_URL` in EAS~~ (done 2026-11-03).
 5. Run the one-time setup (section 3). Install the first TestFlight build on the iPad and test pairing, transfer and deletion on it. TestFlight needs no App Review for internal testers **[unverified]**.
 6. In App Store Connect: create the app record (name, bundle ID, SKU, language), set price **Free**, category (Utilities or Productivity), the age-rating questionnaire (Apple's new rating system **[verified]**), App Privacy answers, EU trader status, support URL, privacy policy URL, description, keywords, the app icon (done, see section 1), screenshots at the sizes App Store Connect asks for.
 7. App Review notes, written for a reviewer who may own one device. Suggested text: "Two devices are needed to pair. On device A tap Connect Device > Generate Connection Code. On device B tap Connect Device and enter the code. Then tap Send Files on either device, choose a file and accept on the other. No account or sign-in is needed: the app creates an anonymous account on first launch and it can be deleted from the home screen (Delete account). A screen recording of the whole flow is attached." Attach that recording. **Reviewers who cannot test a feature reject apps for incompleteness (Guideline 2.1) [unverified]**.
@@ -150,7 +152,7 @@ Apple 99 USD per year. Expo's free plan for builds (monthly quota **[unverified]
 
 ## 9. To confirm before relying on it
 
-Export-compliance answer; purpose-string behaviour in App Store Connect; that a failing `eas-build-post-install` stops a build; `eas env` command name; the exact privacy-policy and review-notes rules; TestFlight internal testing needing no review; EU trader details being public; Supabase pause and limits; EAS free-plan quota.
+Export-compliance answer; purpose-string behaviour in App Store Connect; that a failing `eas-build-post-install` stops a build; the exact privacy-policy and review-notes rules; TestFlight internal testing needing no review; EU trader details being public; Supabase pause and limits; EAS free-plan quota.
 
 ## 10. Optional: the `asc` command-line tool
 
